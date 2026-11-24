@@ -1,0 +1,43 @@
+# ==========================================================
+# HotelFlow - Sistema de Gestão Hoteleira (SENAC)
+# Arquivo .gitignore (Java 17+, Maven/Gradle, IDEs e SO)
+# ==========================================================
+
+# Compilados Java e pacotes
+*.class
+*.jar
+*.war
+*.ear
+*.log
+hs_err_pid*
+replay_pid*
+
+# Diretórios de build (Maven / Gradle / IDEs)
+target/
+build/
+out/
+bin/
+.gradle/
+
+# IDEs (IntelliJ IDEA, Eclipse, NetBeans, VS Code)
+.idea/
+*.iml
+*.iws
+*.ipr
+.classpath
+.project
+.settings/
+nbproject/
+.vscode/
+
+# Configurações locais sensíveis (credenciais de banco MySQL)
+.env
+*.local.properties
+db.properties
+
+# Arquivos temporários do Sistema Operacional e Microsoft Office
+~$*
+*.tmp
+.DS_Store
+Thumbs.db
+Desktop.ini
