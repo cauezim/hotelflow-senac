@@ -73,19 +73,19 @@ Durante a análise rigorosa das regras `RN01` a `RN20`, foram identificadas **4 
 - **Ambiguidade:** A `RN17` define que no pós-check-out o quarto fica `Disponível` e `Sujo`. A `RN09` não explicita se o check-in do próximo hóspede deve ser bloqueado enquanto o quarto ainda estiver `Sujo` ou `Em Limpeza`.
 - **Opção A (Recomendada):** Bloquear o Check-in caso o quarto não esteja simultaneamente `Disponível` **e** `Limpo`. Garante coerência real com o trabalho da `Camareira` (`RN12`).
 - **Opção B:** Permitir o Check-in exigindo apenas que esteja `Disponível`, exibindo no máximo um aviso sobre a limpeza.
-- **Decisão da Equipe:** *[Aguardando definição]*
+- **Decisão da Equipe:** **Opção A aprovada** – Check-in exige quarto `Disponível` e `Limpo`.
 
 ### D02 – Contagem de Diárias e Regra de Fronteira nas Datas (`RN05`, `RN06`, `RN13`)
 - **Ambiguidade:** Como tratar reservas em que um hóspede faz check-out no mesmo dia em que outro faz check-in (ex.: saída dia 15 e entrada de outro dia 15), e como cobrar caso o check-out ocorra no mesmo dia do check-in?
 - **Opção A (Recomendada):** Adotar intervalo semiaberto `[dataCheckIn, dataCheckOut)` (padrão hoteleiro: saída no dia 15 permite nova entrada no dia 15 sem conflito na `RN06`), cobrando `dias = checkOut - checkIn` com **mínimo de 1 diária** caso a saída ocorra na mesma data de entrada.
 - **Opção B:** Considerar a data de check-out como dia bloqueado integralmente (novo check-in só no dia seguinte) e cobrar estritamente os dias previstos no agendamento.
-- **Decisão da Equipe:** *[Aguardando definição]*
+- **Decisão da Equipe:** **Opção A aprovada** – Intervalo semiaberto `[checkIn, checkOut)` e cobrança mínima de 1 diária.
 
 ### D03 – Cadastro Prévio vs. Aplicação Direta de Cupom de Desconto (`RN14`)
 - **Ambiguidade:** A `RN14` cita aplicação de "cupom de desconto percentual" pelo `Gerente`, sem especificar se os cupons são entidades previamente cadastradas (ex.: `SENAC10` = 10%) ou informados livremente no ato.
 - **Opção A (Recomendada):** Modelar a classe/tabela `CupomDesconto` (`codigo`, `percentual`, `ativo`), onde o Gerente informa o código de um cupom válido para abater na `Fatura`. Enriquece o Diagrama de Classes e evita erros de digitação de percentuais arbitrários.
 - **Opção B:** Não criar entidade `CupomDesconto`; o Gerente apenas digita um código textual e a porcentagem diretamente nos atributos da `Fatura`.
-- **Decisão da Equipe:** *[Aguardando definição]*
+- **Decisão da Equipe:** **Opção A aprovada** – Entidade `CupomDesconto` previamente cadastrada e validada na aplicação.
 
 ### D04 – Matriz de Permissões entre Recepcionista e Gerente (`RN01` a `RN20`)
 - **Ambiguidade:** As regras especificam o ator em `RN12` (`Camareira`) e em `RN14`/`RN20` (`Gerente`), mas não delimitam quem mantém os cadastros estruturais (`Quartos` e `Tarifas` – `RN03`, `RN04`) nem se o `Gerente` herda os poderes da `Recepcionista`.
@@ -94,4 +94,4 @@ Durante a análise rigorosa das regras `RN01` a `RN20`, foram identificadas **4 
   - `Recepcionista`: operações diárias de atendimento (`Hóspedes`, `Reservas`, `Check-in`, `Frigobar`, `Serviços`, `Check-out`, `Pagamentos`, `Recibo`, `Histórico`);
   - `Gerente`: herda as permissões de `Recepcionista` + exclusividade em `Quartos`/`Tarifas` (`RN03`, `RN04`), `Cupom de Desconto` (`RN14`) e `Relatório de Ocupação` (`RN20`).
 - **Opção B:** Segregação estrita sem herança (cada perfil vê apenas suas telas específicas, ficando `Quartos` e `Tarifas` com o Gerente, mas sem que o Gerente possa operar reservas/check-out).
-- **Decisão da Equipe:** *[Aguardando definição]*
+- **Decisão da Equipe:** **Opção A aprovada** – Generalização de atores (`Gerente` herda permissões de `Recepcionista`).

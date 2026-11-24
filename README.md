@@ -23,8 +23,8 @@ hotelflow/
 
 ## Roadmap do Projeto (Etapas E1 a E12)
 
-- [ ] **E1**: Entendimento e numeração dos requisitos (`RN01`..`RN20`), glossário e levantamento de dúvidas
-- [ ] **E2**: Identificação de Atores e Diagrama Geral de Casos de Uso (PlantUML)
+- [x] **E1**: Entendimento e numeração dos requisitos (`RN01`..`RN20`), glossário e levantamento de dúvidas — [Ver Documento](docs/E1_Analise_Requisitos_e_Glossario.md)
+- [x] **E2**: Identificação de Atores e Diagrama Geral de Casos de Uso (PlantUML) — [Ver Documento](docs/E2_Atores_e_Casos_de_Uso.md) | [Diagrama .puml](docs/diagramas/E2_Casos_de_Uso_Geral.puml)
 - [ ] **E3**: Especificação detalhada do Caso de Uso *"Processar Check-out e Faturamento"*
 - [ ] **E4**: Análise Gramatical de Abbott (candidatos a classes, atributos e métodos)
 - [ ] **E5**: Diagrama de Classes de Domínio
@@ -50,8 +50,8 @@ hotelflow/
 
 1. **Clonar o repositório (fora de pastas sincronizadas pelo OneDrive/Google Drive):**
    ```bash
-   git clone <URL_DO_REPOSITORIO_GITHUB>
-   cd hotelflow
+   git clone https://github.com/cauezim/hotelflow-senac.git
+   cd hotelflow-senac
    ```
 2. **Antes de começar uma tarefa, atualizar a branch principal:**
    ```bash
