@@ -67,7 +67,7 @@ Padronização conceitual e terminológica para uso consistente nos Diagramas UM
 
 ## 4. Levantamento de Ambiguidades e Decisões de Projeto
 
-Durante a análise rigorosa das regras `RN01` a `RN20`, foram identificadas **4 lacunas/ambiguidades naturais** de especificação que impactam os próximos diagramas. Cada uma possui duas interpretações válidas para deliberação da equipe:
+Durante a análise rigorosa das regras `RN01` a `RN20`, foram identificadas **6 lacunas/ambiguidades naturais** de especificação que impactam os diagramas, o banco de dados e o código Java. Cada uma possui duas interpretações válidas deliberadas pela equipe:
 
 ### D01 – Condição de Limpeza para Realizar o Check-in (`RN09`, `RN12`, `RN17`)
 - **Ambiguidade:** A `RN17` define que no pós-check-out o quarto fica `Disponível` e `Sujo`. A `RN09` não explicita se o check-in do próximo hóspede deve ser bloqueado enquanto o quarto ainda estiver `Sujo` ou `Em Limpeza`.
@@ -95,3 +95,15 @@ Durante a análise rigorosa das regras `RN01` a `RN20`, foram identificadas **4 
   - `Gerente`: herda as permissões de `Recepcionista` + exclusividade em `Quartos`/`Tarifas` (`RN03`, `RN04`), `Cupom de Desconto` (`RN14`) e `Relatório de Ocupação` (`RN20`).
 - **Opção B:** Segregação estrita sem herança (cada perfil vê apenas suas telas específicas, ficando `Quartos` e `Tarifas` com o Gerente, mas sem que o Gerente possa operar reservas/check-out).
 - **Decisão da Equipe:** **Opção A aprovada** – Generalização de atores (`Gerente` herda permissões de `Recepcionista`).
+
+### D05 – Datas Previstas vs. Datas Efetivas de Estadia (`RN05`, `RN06`, `RN09`, `RN13`, `RN20`)
+- **Ambiguidade:** A `RN05` define o agendamento com `data prevista de check-in` e `data prevista de check-out`, enquanto `RN09`, `RN13` e `RN20` tratam da entrada real, apuração de diárias no check-out e taxa de ocupação mensal efetiva.
+- **Opção A (Recomendada):** Manter `dataCheckInPrevista` e `dataCheckOutPrevista` para agendamento e validação de sobreposição (`RN05`, `RN06`), e adicionar `dataHoraCheckIn` e `dataHoraCheckOut` em `Reserva` para registrar a entrada e a saída reais (`RN09`, `RN13`, `RN20`), calculando as diárias e a ocupação efetiva com mínimo de 1 diária (`D02`).
+- **Opção B:** Utilizar apenas `dataCheckInPrevista` e `dataCheckOutPrevista` tanto na reserva quanto no faturamento e no relatório mensal.
+- **Decisão da Equipe:** **Opção A aprovada** – Registro separado de datas previstas (agendamento) e datas/horas efetivas (estadia real, cobrança e relatório).
+
+### D06 – Congelamento Histórico da Fatura e Momento de Aplicação do Cupom (`RN04`, `RN13`, `RN14`, `RN16`, `RN19`)
+- **Ambiguidade:** Caso o Gerente atualize futuramente a tarifa diária de uma categoria (`RN04`) ou o percentual de um cupom (`RN14`), faturas já emitidas no histórico (`RN19`) não podem sofrer alteração retroativa. Além disso, aplicar desconto percentual após pagamentos parciais (`RN16`) poderia reduzir o valor líquido abaixo do montante já pago.
+- **Opção A (Recomendada):** Congelar na entidade/tabela `Fatura` os valores vigentes no ato do faturamento (`tarifaDiariaAplicada`, `valorBruto`, `percentualDesconto`, `valorDesconto`) e permitir a aplicação de cupom (`RN14`) somente enquanto a fatura estiver `Aguardando Pagamento` (`totalPago == 0`), limitando cupons a percentuais entre `> 0%` e `< 100%`.
+- **Opção B:** Recalcular faturas dinamicamente a partir do cadastro vigente e permitir aplicação de desconto em qualquer etapa do pagamento parcial.
+- **Decisão da Equipe:** **Opção A aprovada** – Congelamento histórico na `Fatura` e desconto permitido apenas antes do primeiro pagamento.

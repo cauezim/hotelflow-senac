@@ -1,0 +1,98 @@
+@startuml E6_Diagrama_de_Estados
+skinparam shadowing false
+skinparam state {
+    BackgroundColor #F8FAFC
+    BorderColor #334155
+    ArrowColor #1E293B
+}
+
+title Diagramas de Estados UML – Reserva, Quarto e Fatura [Atende RN05..RN19, D01, D05, D06]
+
+' =====================================================================
+' 1. MÁQUINA DE ESTADOS: RESERVA [Atende RN05, RN06, RN07, RN08, RN09, RN17, RN19]
+' =====================================================================
+state "Ciclo de Vida de Reserva [Atende RN05..RN11, RN17, RN19]" as MaquinaReserva {
+    [*] --> PENDENTE : criarReserva(hospede, quarto, iniPrev, fimPrev)\n[Atende RN05, RN07]
+
+    state PENDENTE {
+        PENDENTE : entry / registrar agendamento inicial
+    }
+
+    state CONFIRMADA {
+        CONFIRMADA : entry / enviarEmailConfirmacao(hospede.email) [RN08]
+    }
+
+    state EM_ANDAMENTO {
+        EM_ANDAMENTO : entry / gravar dataHoraCheckIn [D05]
+        EM_ANDAMENTO : adicionarConsumo(item) [fatura == null] / somar item [RN10]
+        EM_ANDAMENTO : adicionarServico(serv) [fatura == null] / somar serviço [RN11]
+    }
+
+    state FINALIZADA {
+        FINALIZADA : entry / gravar dataHoraCheckOut [D05]
+        FINALIZADA : do / integrar histórico do hóspede [RN19]
+    }
+
+    state CANCELADA {
+        CANCELADA : entry / liberar agenda prevista do quarto
+    }
+
+    PENDENTE --> CONFIRMADA : confirmar()\n[sem conflito em [iniPrev, fimPrev) – RN06, D02]
+    PENDENTE --> CANCELADA : cancelar() [RN07]
+    CONFIRMADA --> CANCELADA : cancelar() [antes do check-in – RN07]
+    CONFIRMADA --> EM_ANDAMENTO : realizarCheckIn(entrada)\n[quarto.estaAptoParaCheckIn() == true – RN09, D01]\n/ quarto.ocupar()
+    EM_ANDAMENTO --> FINALIZADA : finalizar(saida)\n[fatura.estaQuitada() == true – RN16, RN17]\n/ quarto.liberar(); quarto.atualizarLimpeza(SUJO)
+
+    CANCELADA --> [*]
+    FINALIZADA --> [*]
+}
+
+' =====================================================================
+' 2. MÁQUINA DE ESTADOS ORTOGONAL: QUARTO [Atende RN03, RN09, RN12, RN17, D01]
+' =====================================================================
+state "Ciclo de Vida Ortogonal de Quarto [Atende RN09, RN12, RN17, D01]" as MaquinaQuarto {
+    [*] --> QuartoAtivo : cadastrarQuarto() [RN03]
+
+    state "Quarto Cadastrado (Regiões Concorrentes)" as QuartoAtivo {
+        ' Região 1: Ocupação
+        [*] --> DISPONIVEL
+        DISPONIVEL --> OCUPADO : ocupar()\n[statusLimpeza == LIMPO – RN09, D01]
+        OCUPADO --> DISPONIVEL : liberar()\n[quitação total no check-out – RN17]
+
+        --
+
+        ' Região 2: Governança / Limpeza
+        [*] --> LIMPO
+        LIMPO --> SUJO : atualizarLimpeza(SUJO)\n[pós-check-out RN17 ou Camareira RN12]
+        SUJO --> EM_LIMPEZA : atualizarLimpeza(EM_LIMPEZA)\n[Camareira inicia limpeza – RN12]
+        EM_LIMPEZA --> LIMPO : atualizarLimpeza(LIMPO)\n[Camareira conclui limpeza – RN12]
+    }
+}
+
+' =====================================================================
+' 3. MÁQUINA DE ESTADOS: FATURA [Atende RN13, RN14, RN15, RN16, RN18, D06]
+' =====================================================================
+state "Ciclo de Vida de Fatura [Atende RN13..RN18, D06]" as MaquinaFatura {
+    [*] --> AGUARDANDO_PAGAMENTO : emitirFatura(reserva)\n[reserva EM_ANDAMENTO – RN13]\n/ congelar tarifaDiaria e valorBruto [D06]
+
+    state AGUARDANDO_PAGAMENTO {
+        AGUARDANDO_PAGAMENTO : aplicarDesconto(cupom)\n[Gerente && cupom.validar() && totalPago == 0]\n/ congelar percentual e valorDesconto [RN14, D06]
+    }
+
+    state PARCIALMENTE_PAGA {
+        PARCIALMENTE_PAGA : registrarPagamento(pag)\n[0 < pag.valor < saldoDevedor – RN15, RN16]\n/ manter reserva EM_ANDAMENTO
+    }
+
+    state PAGA {
+        PAGA : entry / saldoDevedor == 0,00
+        PAGA : do / autorizar encerramento [RN17] e emitir recibo [RN18]
+    }
+
+    AGUARDANDO_PAGAMENTO --> PARCIALMENTE_PAGA : registrarPagamento(pag)\n[0 < pag.valor < saldoDevedor – RN15, RN16]
+    AGUARDANDO_PAGAMENTO --> PAGA : registrarPagamento(pag)\n[pag.valor == saldoDevedor – RN15, RN16]
+    PARCIALMENTE_PAGA --> PAGA : registrarPagamento(pag)\n[pag.valor == saldoDevedor – RN15, RN16]
+
+    PAGA --> [*]
+}
+
+@enduml

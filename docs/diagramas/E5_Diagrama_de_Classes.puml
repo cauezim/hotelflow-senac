@@ -1,0 +1,199 @@
+@startuml E5_Diagrama_de_Classes
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam packageStyle rectangle
+hide empty methods
+
+title Diagrama de Classes de Domínio – Sistema HotelFlow [Atende RN01 a RN20]
+
+' ==========================================
+' CLASSES DE DOMÍNIO (ENTIDADES)
+' ==========================================
+
+class Usuario {
+    - idUsuario : int
+    - nome : String
+    - login : String
+    - senhaHash : String
+    - perfil : PerfilUsuario
+    + autenticar(senha : String) : boolean
+    + possuiPermissao(operacao : String) : boolean
+}
+note top of Usuario : [Atende RN01, D04]
+
+class Hospede {
+    - idHospede : int
+    - nomeCompleto : String
+    - documento : String
+    - telefone : String
+    - email : String
+    - endereco : String
+    + consultarHistorico() : List<Reserva>
+}
+note top of Hospede : [Atende RN02, RN19]
+
+class CategoriaQuarto {
+    - idCategoria : int
+    - nome : String
+    - tarifaDiaria : BigDecimal
+    + atualizarTarifa(novoValor : BigDecimal) : void
+}
+note bottom of CategoriaQuarto : Categorias: Standard, Luxo, Suíte\n[Atende RN03, RN04]
+
+class Quarto {
+    - idQuarto : int
+    - numero : String
+    - andar : int
+    - capacidadeMaxima : int
+    - statusOcupacao : StatusOcupacao
+    - statusLimpeza : StatusLimpeza
+    + ocupar() : void
+    + liberar() : void
+    + atualizarLimpeza(status : StatusLimpeza) : void
+    + estaAptoParaCheckIn() : boolean
+}
+note top of Quarto : [Atende RN03, RN09, RN12, RN17, D01]
+
+class Reserva {
+    - idReserva : int
+    - dataCheckInPrevista : LocalDate
+    - dataCheckOutPrevista : LocalDate
+    - dataHoraCheckIn : LocalDateTime
+    - dataHoraCheckOut : LocalDateTime
+    - status : StatusReserva
+    + confirmar() : void
+    + cancelar() : void
+    + realizarCheckIn(entrada : LocalDateTime) : void
+    + finalizar(saida : LocalDateTime) : void
+    + possuiConflitoPeriodo(ini : LocalDate, fim : LocalDate) : boolean
+    + calcularDiarias(saidaRef : LocalDate) : long
+    + calcularTotalConsumos() : BigDecimal
+    + calcularTotalServicos() : BigDecimal
+    + adicionarConsumo(consumo : ConsumoFrigobar) : void
+    + adicionarServico(servico : ServicoQuarto) : void
+}
+note top of Reserva : [Atende RN05..RN11, RN13, RN17, RN19, RN20, D01, D02, D05]
+
+class ConsumoFrigobar {
+    - idConsumo : int
+    - produto : String
+    - quantidade : int
+    - valorUnitario : BigDecimal
+    - dataHoraRegistro : LocalDateTime
+    + calcularSubtotal() : BigDecimal
+}
+note right of ConsumoFrigobar : [Atende RN10, RN13]
+
+class ServicoQuarto {
+    - idServico : int
+    - dataHoraSolicitacao : LocalDateTime
+    - descricao : String
+    - valor : BigDecimal
+}
+note right of ServicoQuarto : [Atende RN11, RN13]
+
+class Fatura {
+    - idFatura : int
+    - dataEmissao : LocalDateTime
+    - quantidadeDiarias : long
+    - tarifaDiariaAplicada : BigDecimal
+    - valorBruto : BigDecimal
+    - percentualDesconto : BigDecimal
+    - valorDesconto : BigDecimal
+    - status : StatusFatura
+    + calcularValorBruto() : BigDecimal
+    + aplicarDesconto(cupom : CupomDesconto) : void
+    + calcularValorLiquido() : BigDecimal
+    + registrarPagamento(pagamento : Pagamento) : void
+    + calcularTotalPago() : BigDecimal
+    + calcularSaldoDevedor() : BigDecimal
+    + estaQuitada() : boolean
+}
+note left of Fatura : Valores congelados na emissão/desconto\n[Atende RN13..RN18, D06]
+
+class CupomDesconto {
+    - idCupom : int
+    - codigo : String
+    - percentual : BigDecimal
+    - ativo : boolean
+    + ativar() : void
+    + desativar() : void
+    + validar() : boolean
+    + calcularDesconto(valorBruto : BigDecimal) : BigDecimal
+}
+note bottom of CupomDesconto : [Atende RN14, D03, D06]
+
+class Pagamento {
+    - idPagamento : int
+    - valor : BigDecimal
+    - dataPagamento : LocalDateTime
+    - formaPagamento : FormaPagamento
+}
+note bottom of Pagamento : [Atende RN15, RN16]
+
+' ==========================================
+' ENUMERAÇÕES TIPADAS DO DOMÍNIO
+' ==========================================
+
+enum PerfilUsuario <<enumeration>> {
+    CAMAREIRA
+    RECEPCIONISTA
+    GERENTE
+}
+
+enum StatusReserva <<enumeration>> {
+    PENDENTE
+    CONFIRMADA
+    EM_ANDAMENTO
+    FINALIZADA
+    CANCELADA
+}
+
+enum StatusOcupacao <<enumeration>> {
+    DISPONIVEL
+    OCUPADO
+}
+
+enum StatusLimpeza <<enumeration>> {
+    SUJO
+    EM_LIMPEZA
+    LIMPO
+}
+
+enum StatusFatura <<enumeration>> {
+    AGUARDANDO_PAGAMENTO
+    PARCIALMENTE_PAGA
+    PAGA
+}
+
+enum FormaPagamento <<enumeration>> {
+    CARTAO_CREDITO
+    PIX
+    DINHEIRO
+}
+
+' ==========================================
+' RELACIONAMENTOS E MULTIPLICIDADES UML 2.5
+' ==========================================
+
+' Associações Estruturais Independentes
+Hospede "1\nhospede" <--> "0..*\nreservas" Reserva : realiza >
+Reserva "0..*\nreservas" --> "1\nquarto" Quarto : aloca >
+Quarto "0..*\nquartos" --> "1\ncategoria" CategoriaQuarto : classificado em >
+Fatura "0..*\nfaturas" --> "0..1\ncupom" CupomDesconto : aplica >
+
+' Composições (Ciclo de vida exclusivo / Todo-Parte forte)
+Reserva "1" *-- "0..*\nconsumos" ConsumoFrigobar : contém >
+Reserva "1" *-- "0..*\nservicos" ServicoQuarto : contém >
+Reserva "1\nreserva" *-- "0..1\nfatura" Fatura : gera >
+Fatura "1" *-- "0..*\npagamentos" Pagamento : recebe >
+
+' Dependências de Tipos Enumerados
+Usuario ..> PerfilUsuario
+Reserva ..> StatusReserva
+Quarto ..> StatusOcupacao
+Quarto ..> StatusLimpeza
+Fatura ..> StatusFatura
+Pagamento ..> FormaPagamento
+
+@enduml

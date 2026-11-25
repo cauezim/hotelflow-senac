@@ -4,10 +4,10 @@ skinparam packageStyle rectangle
 skinparam actorStyle awesome
 skinparam shadowing false
 
-title Diagrama Geral de Casos de Uso – Sistema HotelFlow (RN01 a RN20)
+title Diagrama Geral de Casos de Uso – Sistema HotelFlow [Atende RN01 a RN20]
 
 ' ==========================================
-' ATORES PRIMÁRIOS (RN01, D04)
+' ATORES PRIMÁRIOS [Atende RN01, D04]
 ' ==========================================
 actor "Funcionário\n(Autenticado)" as Funcionario
 actor "Camareira" as Camareira
@@ -20,7 +20,7 @@ Funcionario <|-- Recepcionista
 Recepcionista <|-- Gerente
 
 ' ==========================================
-' ATOR SECUNDÁRIO / SISTEMA EXTERNO (RN08)
+' ATOR SECUNDÁRIO / SISTEMA EXTERNO [Atende RN08]
 ' ==========================================
 actor "Serviço de E-mail\n<<Sistema Externo>>" as ServicoEmail
 
@@ -30,36 +30,37 @@ actor "Serviço de E-mail\n<<Sistema Externo>>" as ServicoEmail
 rectangle "Sistema de Gestão Hoteleira – HotelFlow" {
 
     package "1. Acesso e Segurança" {
-        usecase "UC01 - Autenticar no Sistema\n[RN01]" as UC01
+        usecase "UC01 - Autenticar no Sistema\n[Atende RN01]" as UC01
     }
 
     package "2. Cadastros Estruturais" {
-        usecase "UC02 - Manter Hóspedes\n[RN02]" as UC02
-        usecase "UC03 - Consultar Histórico do Hóspede\n[RN19]" as UC03
-        usecase "UC04 - Manter Quartos\n[RN03]" as UC04
-        usecase "UC05 - Manter Categorias e Tarifas\n[RN03, RN04]" as UC05
-        usecase "UC06 - Manter Cupons de Desconto\n[RN14, D03]" as UC06
+        usecase "UC02 - Manter Hóspedes\n[Atende RN02]" as UC02
+        usecase "UC03 - Consultar Histórico do Hóspede\n[Atende RN19]" as UC03
+        usecase "UC04 - Manter Quartos\n[Atende RN03]" as UC04
+        usecase "UC05 - Manter Categorias e Tarifas\n[Atende RN03, RN04]" as UC05
+        usecase "UC06 - Manter Cupons de Desconto\n[Atende RN14, D03]" as UC06
     }
 
     package "3. Ciclo de Reserva e Governança" {
-        usecase "UC07 - Criar ou Cancelar Reserva\n[RN05, RN07]" as UC07
-        usecase "UC08 - Confirmar Reserva\n[RN06, RN07, D02]" as UC08
-        usecase "UC08.1 - Enviar E-mail de Confirmação\n[RN08]" as UC08_1
-        usecase "UC09 - Realizar Check-in\n[RN07, RN09, D01]" as UC09
-        usecase "UC12 - Atualizar Limpeza do Quarto\n[RN12]" as UC12
+        usecase "UC07 - Criar Reserva\n[Atende RN05, RN07]" as UC07
+        usecase "UC07.1 - Cancelar Reserva\n[Atende RN07]" as UC07_1
+        usecase "UC08 - Confirmar Reserva\n[Atende RN06, RN07, D02]" as UC08
+        usecase "UC08.1 - Enviar E-mail de Confirmação\n[Atende RN08]" as UC08_1
+        usecase "UC09 - Realizar Check-in\n[Atende RN07, RN09, D01, D05]" as UC09
+        usecase "UC12 - Atualizar Limpeza do Quarto\n[Atende RN12]" as UC12
     }
 
     package "4. Consumo e Serviços na Estadia" {
-        usecase "UC10 - Lançar Consumo de Frigobar\n[RN10]" as UC10
-        usecase "UC11 - Registrar Serviço de Quarto\n[RN11]" as UC11
+        usecase "UC10 - Lançar Consumo de Frigobar\n[Atende RN10]" as UC10
+        usecase "UC11 - Registrar Serviço de Quarto\n[Atende RN11]" as UC11
     }
 
     package "5. Check-out, Faturamento e Gestão" {
-        usecase "UC13 - Processar Check-out e Faturamento\n[RN07, RN13, RN17, D02]" as UC13
-        usecase "UC14 - Registrar Pagamento da Fatura\n[RN15, RN16]" as UC14
-        usecase "UC15 - Emitir Recibo de Hospedagem\n[RN18]" as UC15
-        usecase "UC16 - Aplicar Cupom de Desconto\n[RN14, D03]" as UC16
-        usecase "UC17 - Gerar Relatório de Ocupação Mensal\n[RN20]" as UC17
+        usecase "UC13 - Processar Check-out e Faturamento\n[Atende RN07, RN13, RN17, D02, D05, D06]" as UC13
+        usecase "UC14 - Registrar Pagamento da Fatura\n[Atende RN15, RN16]" as UC14
+        usecase "UC15 - Emitir Recibo de Hospedagem\n[Atende RN18]" as UC15
+        usecase "UC16 - Aplicar Cupom de Desconto\n[Atende RN14, D03, D06]" as UC16
+        usecase "UC17 - Gerar Relatório de Ocupação Mensal\n[Atende RN20, D05]" as UC17
     }
 }
 
@@ -67,23 +68,24 @@ rectangle "Sistema de Gestão Hoteleira – HotelFlow" {
 ' ASSOCIAÇÕES ATORES <-> CASOS DE USO
 ' ==========================================
 
-' Acesso Base (herdado por todos os perfis)
+' Acesso Base (herdado por todos os perfis) [Atende RN01]
 Funcionario --> UC01
 
-' Governança (exclusivo Camareira)
+' Governança (exclusivo Camareira) [Atende RN12]
 Camareira --> UC12
 
-' Rotina de Recepção (Recepcionista e, por herança, Gerente)
+' Rotina de Recepção (Recepcionista e, por herança, Gerente) [Atende D04]
 Recepcionista --> UC02
 Recepcionista --> UC03
 Recepcionista --> UC07
+Recepcionista --> UC07_1
 Recepcionista --> UC08
 Recepcionista --> UC09
 Recepcionista --> UC10
 Recepcionista --> UC11
 Recepcionista --> UC13
 
-' Gestão Estrutural e Financeira (exclusivo Gerente)
+' Gestão Estrutural e Financeira (exclusivo Gerente) [Atende RN03, RN04, RN14, RN20, D04]
 Gerente --> UC04
 Gerente --> UC05
 Gerente --> UC06
@@ -95,7 +97,7 @@ UC08 ..> UC08_1 : <<include>>
 UC08_1 --> ServicoEmail
 
 UC13 ..> UC14 : <<include>>
-UC13 ..> UC15 : <<include>>
-UC16 ..> UC13 : <<extend>>
+UC15 ..> UC13 : <<extend>>\n[fatura quitada]
+UC16 ..> UC13 : <<extend>>\n[desconto solicitado]
 
 @enduml

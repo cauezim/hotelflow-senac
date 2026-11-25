@@ -25,11 +25,11 @@ hotelflow/
 
 - [x] **E1**: Entendimento e numeração dos requisitos (`RN01`..`RN20`), glossário e levantamento de dúvidas — [Ver Documento](docs/E1_Analise_Requisitos_e_Glossario.md)
 - [x] **E2**: Identificação de Atores e Diagrama Geral de Casos de Uso (PlantUML) — [Ver Documento](docs/E2_Atores_e_Casos_de_Uso.md) | [Diagrama .puml](docs/diagramas/E2_Casos_de_Uso_Geral.puml)
-- [ ] **E3**: Especificação detalhada do Caso de Uso *"Processar Check-out e Faturamento"*
-- [ ] **E4**: Análise Gramatical de Abbott (candidatos a classes, atributos e métodos)
-- [ ] **E5**: Diagrama de Classes de Domínio
-- [ ] **E6**: Diagrama de Estados UML (`Reserva`, `Quarto` e `Fatura`)
-- [ ] **E7**: Diagrama de Sequência UML (pagamento, liquidação e encerramento de conta)
+- [x] **E3**: Especificação detalhada do Caso de Uso *"Processar Check-out e Faturamento"* — [Ver Documento](docs/E3_Especificacao_Caso_de_Uso.md)
+- [x] **E4**: Análise Gramatical de Abbott (candidatos a classes, atributos e métodos) — [Ver Documento](docs/E4_Analise_Gramatical_Abbott.md)
+- [x] **E5**: Diagrama de Classes de Domínio — [Ver Documento](docs/E5_Diagrama_de_Classes.md) | [Diagrama .puml](docs/diagramas/E5_Diagrama_de_Classes.puml)
+- [x] **E6**: Diagrama de Estados UML (`Reserva`, `Quarto` e `Fatura`) — [Ver Documento](docs/E6_Diagrama_de_Estados.md) | [Diagrama .puml](docs/diagramas/E6_Diagrama_de_Estados.puml)
+- [x] **E7**: Diagrama de Sequência UML (pagamento, liquidação e encerramento de conta) — [Ver Documento](docs/E7_Diagrama_de_Sequencia.md) | [Diagrama .puml](docs/diagramas/E7_Diagrama_de_Sequencia.puml) | [Caderno Visual .pdf](docs/diagramas/HotelFlow_Modelagem_UML.pdf)
 - [ ] **E8**: Modelagem Lógica e Física de Banco de Dados (MySQL 8)
 - [ ] **E9**: Definição da Arquitetura Java 17+ (`model`, `dao`, `service`, `view` + JDBC)
 - [ ] **E10**: Implementação incremental dos módulos em Java 17+
