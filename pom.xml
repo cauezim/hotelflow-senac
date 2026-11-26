@@ -11,7 +11,7 @@
     <!-- =================================================================== -->
     <groupId>br.senac</groupId>
     <artifactId>hotelflow</artifactId>
-    <version>0.3.0-alpha</version>
+    <version>0.8.0-alpha</version>
     <packaging>jar</packaging>
 
     <name>HotelFlow - Sistema de Gestão Hoteleira</name>
