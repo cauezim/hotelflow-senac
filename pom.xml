@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <!-- =================================================================== -->
+    <!-- HotelFlow – Sistema de Gestão Hoteleira (SENAC - AOO & POO)         -->
+    <!-- Compatível nativamente com Apache NetBeans, IntelliJ e VS Code      -->
+    <!-- [Atende RN01 a RN20]                                                -->
+    <!-- =================================================================== -->
+    <groupId>br.senac</groupId>
+    <artifactId>hotelflow</artifactId>
+    <version>0.1.0-alpha</version>
+    <packaging>jar</packaging>
+
+    <name>HotelFlow - Sistema de Gestão Hoteleira</name>
+    <description>Plataforma centralizada de recepção, governança e gerência hoteleira em Java 17 e MySQL 8.</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <maven.compiler.release>17</maven.compiler.release>
+        <exec.mainClass>br.senac.hotelflow.view.HotelFlowApp</exec.mainClass>
+        <mysql.connector.version>8.4.0</mysql.connector.version>
+        <junit.jupiter.version>5.10.3</junit.jupiter.version>
+    </properties>
+
+    <dependencies>
+        <!-- Driver JDBC Oficial para MySQL 8.0+ (Etapas E8, E9 e E10) -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <version>${mysql.connector.version}</version>
+        </dependency>
+
+        <!-- Framework de Testes Automatizados JUnit 5 (Etapa E11) -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>${maven.compiler.release}</release>
+                    <encoding>${project.build.sourceEncoding}</encoding>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+            </plugin>
+        </plugins>
+    </build>
+</project>

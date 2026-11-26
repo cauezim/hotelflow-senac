@@ -1,0 +1,84 @@
+@startuml E9_Arquitetura_Camadas
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam componentStyle rectangle
+
+title Arquitetura em Camadas Estritas (Java 17 + JDBC + MySQL 8) – HotelFlow [Atende RN01 a RN20]
+
+package "br.senac.hotelflow" {
+
+    package "view (Apresentação)" #EFF6FF {
+        [HotelFlowApp]
+        [Telas / Menus por Perfil\n(Recepcionista | Gerente | Camareira)] as UI
+    }
+
+    package "service (Orquestração e Casos de Uso)" #F0FDF4 {
+        [AutenticacaoService]
+        [CadastroService]
+        [ReservaService]
+        [HospedagemService]
+        [CheckOutService]
+        [GeradorReciboService]
+        [RelatorioOcupacaoService]
+
+        package "service.notificacao" {
+            interface "EmailService" as IEmail
+            [ConsoleEmailService]
+        }
+    }
+
+    package "model (Domínio Rico - POJOs/Entidades)" #FFFBEB {
+        [Usuario / Hospede / Quarto / CategoriaQuarto]
+        [Reserva / ConsumoFrigobar / ServicoQuarto]
+        [Fatura / CupomDesconto / Pagamento]
+        package "model.enums" {
+            [PerfilUsuario | StatusReserva | StatusOcupacao\nStatusLimpeza | StatusFatura | FormaPagamento]
+        }
+    }
+
+    package "dao (Persistência Relacional)" #FAF5FF {
+        interface "CrudDAO<T, ID>" as ICrud
+        [UsuarioDAO / HospedeDAO / QuartoDAO / CategoriaDAO]
+        [ReservaDAO / ConsumoDAO / ServicoDAO]
+        [FaturaDAO / PagamentoDAO / CupomDAO]
+    }
+
+    package "config (Infraestrutura JDBC)" #F8FAFC {
+        [ConnectionFactory\n<<Singleton>>] as ConnFactory
+    }
+
+    package "exception (Exceções Transversais)" #FEF2F2 {
+        [HotelFlowException\nAutenticacaoException | AutorizacaoException\nRegraNegocioException | PersistenciaException] as Ex
+    }
+}
+
+database "MySQL 8.0+ (InnoDB)\nSchema: hotelflow" as MySQL #E2E8F0
+
+' Regras de Dependência Unidirecional
+UI --> [AutenticacaoService]
+UI --> [ReservaService]
+UI --> [CheckOutService]
+
+[ConsoleEmailService] .up.|> IEmail
+[ReservaService] --> IEmail : dispara RN08 >
+
+[ReservaService] --> [Reserva / ConsumoFrigobar / ServicoQuarto]
+[CheckOutService] --> [Fatura / CupomDesconto / Pagamento]
+[CheckOutService] --> [GeradorReciboService] : formata RN18 >
+
+[ReservaService] --> [ReservaDAO / ConsumoDAO / ServicoDAO]
+[CheckOutService] --> [FaturaDAO / PagamentoDAO / CupomDAO]
+
+[ReservaDAO / ConsumoDAO / ServicoDAO] .up.|> ICrud
+[FaturaDAO / PagamentoDAO / CupomDAO] .up.|> ICrud
+
+[ReservaDAO / ConsumoDAO / ServicoDAO] --> [Reserva / ConsumoFrigobar / ServicoQuarto] : hidrata / persiste >
+[FaturaDAO / PagamentoDAO / CupomDAO] --> [Fatura / CupomDesconto / Pagamento]
+
+[ReservaDAO / ConsumoDAO / ServicoDAO] --> ConnFactory
+[FaturaDAO / PagamentoDAO / CupomDAO] --> ConnFactory
+[CheckOutService] ..> ConnFactory : transação ACID (RN17) >
+
+ConnFactory --> MySQL : DriverManager / Connector-J 8.4
+
+@enduml
