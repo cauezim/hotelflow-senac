@@ -36,7 +36,7 @@ class FaturamentoPagamentosEReciboTest {
     @DisplayName("RN13..RN18 / D06: Deve processar exemplo completo de faturamento, desconto, parcelamento, liberação e recibo")
     void deveProcessarCicloCompletoDeFaturamentoEPagamentoFracionado() {
         CategoriaQuarto std = new CategoriaQuarto(1, "Standard", new BigDecimal("200.00"));
-        Quarto quarto = new Quarto(2, "102", 1, 3, std);
+        Quarto quarto = new Quarto(2, "102", 1, 3, std, StatusOcupacao.DISPONIVEL, StatusLimpeza.LIMPO);
         Hospede hospede = new Hospede(1, "Mariana Oliveira", "39148271805", "11998123344", "mariana@email.com", "Av. Paulista");
 
         Reserva reserva = new Reserva(1, hospede, quarto,
@@ -109,7 +109,7 @@ class FaturamentoPagamentosEReciboTest {
     @DisplayName("D02 / D05 / D06: Day-use deve cobrar no mínimo 1 diária e prorrogação deve ajustar fatura aberta")
     void deveCobrarMinimoUmaDiariaEAtualizarProrrogacao() {
         CategoriaQuarto luxo = new CategoriaQuarto(2, "Luxo", new BigDecimal("350.00"));
-        Quarto quarto = new Quarto(3, "201", 2, 2, luxo);
+        Quarto quarto = new Quarto(3, "201", 2, 2, luxo, StatusOcupacao.DISPONIVEL, StatusLimpeza.LIMPO);
         Hospede hospede = new Hospede(2, "Roberto Prado", "21463985040", "11987451020", "roberto@email.com", "Rua Augusta");
 
         Reserva dayUse = new Reserva(5, hospede, quarto,

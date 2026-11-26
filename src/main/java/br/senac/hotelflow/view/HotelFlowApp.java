@@ -17,7 +17,7 @@ public class HotelFlowApp {
     public static void main(String[] args) {
         System.out.println("==========================================================");
         System.out.println("  HotelFlow - Sistema de Gestao Hoteleira (SENAC)         ");
-        System.out.println("  Versao: v0.9.0-beta (Interface Desktop Java Swing)      ");
+        System.out.println("  Versao: v1.0.0 (Release Final - Java 17 + Swing + JDBC) ");
         System.out.println("==========================================================");
 
         if (args != null && args.length > 0 && "--check-db".equalsIgnoreCase(args[0])) {
