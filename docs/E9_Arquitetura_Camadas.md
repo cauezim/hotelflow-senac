@@ -2,11 +2,11 @@
 **Projeto:** HotelFlow – Sistema de Gestão Hoteleira (SENAC)  
 **Disciplina Foco:** Programação Orientada a Objetos (POO – Prof. Pedro) | Marco `v0.1-alpha`  
 **Artefatos Criados:**
-- Configuração Maven (nativa no NetBeans): [pom.xml](file:///home/cauez/hotelaria/pom.xml)
-- Fábrica Singleton JDBC Transacional: [ConnectionFactory.java](file:///home/cauez/hotelaria/src/main/java/br/senac/hotelflow/config/ConnectionFactory.java) e [db.properties.example](file:///home/cauez/hotelaria/src/main/resources/db.properties.example)
+- Configuração Maven (nativa no NetBeans): [pom.xml](../pom.xml)
+- Fábrica Singleton JDBC Transacional: [ConnectionFactory.java](../src/main/java/br/senac/hotelflow/config/ConnectionFactory.java) e [db.properties.example](../src/main/resources/db.properties.example)
 - Hierarquia de Exceções Customizadas: pacote `br.senac.hotelflow.exception`
 - Contratos Base (`CrudDAO`, `EmailService`) e Bootstrap (`HotelFlowApp`): `src/main/java/br/senac/hotelflow/...`
-- Diagrama Arquitetural PlantUML: [E9_Arquitetura_Camadas.puml](file:///home/cauez/hotelaria/docs/diagramas/E9_Arquitetura_Camadas.puml)
+- Diagrama Arquitetural PlantUML: [E9_Arquitetura_Camadas.puml](diagramas/E9_Arquitetura_Camadas.puml)
 
 ---
 

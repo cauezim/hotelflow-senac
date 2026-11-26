@@ -1,7 +1,7 @@
 # Etapa E6 – Diagramas de Estados UML (`Reserva`, `Quarto` e `Fatura`)
 **Projeto:** HotelFlow – Sistema de Gestão Hoteleira (SENAC)  
 **Disciplinas Integradas:** Análise Orientada a Objetos (AOO) e Programação Orientada a Objetos (POO)  
-**Código-fonte PlantUML:** [E6_Diagrama_de_Estados.puml](file:///home/cauez/hotelaria/docs/diagramas/E6_Diagrama_de_Estados.puml) (`[Atende RN05..RN19, D01, D02, D05, D06]`)
+**Código-fonte PlantUML:** [E6_Diagrama_de_Estados.puml](diagramas/E6_Diagrama_de_Estados.puml) (`[Atende RN05..RN19, D01, D02, D05, D06]`)
 
 ---
 
@@ -53,15 +53,15 @@ No domínio do **HotelFlow**, três classes concentram todas as regras de transi
 | `[*]` *(Inicial)* | `emitirFatura(reserva)` | `reserva.status == EM_ANDAMENTO` | Calcula e congela `quantidadeDiarias`, `tarifaDiariaAplicada` e `valorBruto` | `AGUARDANDO_PAGAMENTO` | `[Atende RN13, D06]` |
 | `AGUARDANDO_PAGAMENTO` | `aplicarDesconto(cupom)` | Perfil `GERENTE`, `cupom.validar()` e `totalPago == 0` | Congela `percentualDesconto` e `valorDesconto` *(transição interna)* | `AGUARDANDO_PAGAMENTO` | `[Atende RN14, D03, D06]` |
 | `AGUARDANDO_PAGAMENTO` | `registrarPagamento(pag)` | `0 < pag.valor < saldoDevedor` | Adiciona parcela; recalcula saldo restante | `PARCIALMENTE_PAGA` | `[Atende RN15, RN16]` |
-| `AGUARDANDO_PAGAMENTO` | `registrarPagamento(pag)` | `pag.valor == saldoDevedor` *(pagamento único integral)* | Zera saldo; habilita encerramento e recibo | `PAGA` | `[Atende RN15, RN16, RN17, RN18]` |
+| `AGUARDANDO_PAGAMENTO` | `registrarPagamento(pag)` | `pag.valor == saldoDevedor` *(pagamento único integral)* | Zera saldo; habilita encerramento atômico da reserva (recibo emitido após commit) | `PAGA` | `[Atende RN15, RN16, RN17, RN18]` |
 | `PARCIALMENTE_PAGA` | `registrarPagamento(pag)` | `0 < pag.valor < saldoDevedor` *(nova parcela parcial)* | Acumula pagamento mantendo saldo pendente *(auto-transição)* | `PARCIALMENTE_PAGA` | `[Atende RN15, RN16]` |
-| `PARCIALMENTE_PAGA` | `registrarPagamento(pag)` | `pag.valor == saldoDevedor` *(parcela final quitadora)* | Zera saldo; habilita encerramento e recibo | `PAGA` | `[Atende RN15, RN16, RN17, RN18]` |
+| `PARCIALMENTE_PAGA` | `registrarPagamento(pag)` | `pag.valor == saldoDevedor` *(parcela final quitadora)* | Zera saldo; habilita encerramento atômico da reserva (recibo emitido após commit) | `PAGA` | `[Atende RN15, RN16, RN17, RN18]` |
 
 ---
 
 ## 3. Código PlantUML Consolidado
 
-*(Espelho exato do arquivo [E6_Diagrama_de_Estados.puml](file:///home/cauez/hotelaria/docs/diagramas/E6_Diagrama_de_Estados.puml))*
+*(Espelho exato do arquivo [E6_Diagrama_de_Estados.puml](diagramas/E6_Diagrama_de_Estados.puml))*
 
 ```plantuml
 @startuml E6_Diagrama_de_Estados
@@ -140,7 +140,7 @@ state "Ciclo de Vida de Fatura [Atende RN13..RN18, D06]" as MaquinaFatura {
 
     state PAGA {
         PAGA : entry / saldoDevedor == 0,00
-        PAGA : do / autorizar encerramento [RN17] e emitir recibo [RN18]
+        PAGA : do / habilitar encerramento atômico da Reserva [RN17]
     }
 
     AGUARDANDO_PAGAMENTO --> PARCIALMENTE_PAGA : registrarPagamento(pag)\n[0 < pag.valor < saldoDevedor – RN15, RN16]

@@ -85,7 +85,7 @@ state "Ciclo de Vida de Fatura [Atende RN13..RN18, D06]" as MaquinaFatura {
 
     state PAGA {
         PAGA : entry / saldoDevedor == 0,00
-        PAGA : do / autorizar encerramento [RN17] e emitir recibo [RN18]
+        PAGA : do / habilitar encerramento atômico da Reserva [RN17]
     }
 
     AGUARDANDO_PAGAMENTO --> PARCIALMENTE_PAGA : registrarPagamento(pag)\n[0 < pag.valor < saldoDevedor – RN15, RN16]

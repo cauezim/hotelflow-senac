@@ -1,15 +1,15 @@
 # Etapa E7 – Diagrama de Sequência UML (Pagamento, Liquidação e Encerramento)
 **Projeto:** HotelFlow – Sistema de Gestão Hoteleira (SENAC)  
 **Disciplinas Integradas:** Análise Orientada a Objetos (AOO) e Programação Orientada a Objetos (POO)  
-**Código-fonte PlantUML:** [E7_Diagrama_de_Sequencia.puml](file:///home/cauez/hotelaria/docs/diagramas/E7_Diagrama_de_Sequencia.puml) (`[Atende RN01, RN04, RN07, RN10..RN19, D02..D06]`)
+**Código-fonte PlantUML:** [E7_Diagrama_de_Sequencia.puml](diagramas/E7_Diagrama_de_Sequencia.puml) (`[Atende RN01, RN04, RN07, RN10..RN19, D02..D06]`)
 
 ---
 
 ## 1. Escopo e Alinhamento Arquitetural (BCE + Camadas)
 
-Este Diagrama de Sequência modela ponta a ponta o cenário crítico especificado na [Etapa E3](file:///home/cauez/hotelaria/docs/E3_Especificacao_Caso_de_Uso.md), integrando o caso base **`UC13 – Processar Check-out e Faturamento`**, a inclusão **`UC14 – Registrar Pagamento da Fatura`** e as extensões condicionais **`UC16 – Aplicar Cupom de Desconto`** (`PE01`) e **`UC15 – Emitir Recibo de Hospedagem`** (`PE02`).
+Este Diagrama de Sequência modela ponta a ponta o cenário crítico especificado na [Etapa E3](E3_Especificacao_Caso_de_Uso.md), integrando o caso base **`UC13 – Processar Check-out e Faturamento`**, a inclusão **`UC14 – Registrar Pagamento da Fatura`** e as extensões condicionais **`UC16 – Aplicar Cupom de Desconto`** (`PE01`) e **`UC15 – Emitir Recibo de Hospedagem`** (`PE02`).
 
-Todas as chamadas sobre objetos de negócio obedecem **100% às assinaturas do Diagrama de Classes ([E5](file:///home/cauez/hotelaria/docs/E5_Diagrama_de_Classes.md))**, separando claramente os estereótipos arquiteturais:
+Todas as chamadas sobre objetos de negócio obedecem **100% às assinaturas do Diagrama de Classes ([E5](E5_Diagrama_de_Classes.md))**, separando claramente os estereótipos arquiteturais:
 - **Atores:** `Recepcionista` (operação padrão) e `Gerente` (autorização de desconto — `RN14`);
 - **Boundary (`view`):** `TelaCheckOut`;
 - **Control (`service`):** `CheckOutService` (orquestração e demarcação transacional) e `GeradorReciboService` (formatação textual desacoplada — `RN18`);
@@ -20,16 +20,18 @@ Todas as chamadas sobre objetos de negócio obedecem **100% às assinaturas do D
 
 ## 2. Decisões Técnicas Representadas nas Interações
 
-1. **Prevenção de Duplicidade na Retomada (`FA01` — `[Atende RN16, D06]`):**
-   - Antes de instanciar (`<<create>>`) uma nova `Fatura`, o `CheckOutService` consulta `buscarFaturaPorReserva(idReserva)`. Caso já exista fatura `PARCIALMENTE_PAGA`, recupera o retrato congelado sem recalcular tarifas nem zerar pagamentos prévios.
+1. **Prevenção de Duplicidade e Ajuste por Prorrogação na Retomada (`FA01` — `[Atende RN16, D05, D06]`):**
+   - Antes de instanciar (`<<create>>`) uma nova `Fatura`, o `CheckOutService` consulta `buscarFaturaPorReserva(idReserva)`. Caso já exista fatura aberta, chama `fatura.atualizarSeProrrogada(hoje)` (cobrindo eventuais diárias adicionais se o hóspede permaneceu mais noites) sem zerar pagamentos prévios nem alterar a tarifa congelada.
 2. **Consolidação Explícita da Fatura (`[Atende RN04, RN10, RN11, RN13, D05, D06]`):**
    - Na primeira abertura, `Fatura` interage explicitamente com `Reserva.calcularDiarias(hoje)`, `Quarto -> CategoriaQuarto.getTarifaDiaria()`, `Reserva.calcularTotalConsumos()` e `Reserva.calcularTotalServicos()`, congelando `tarifaDiariaAplicada` e `valorBruto`.
 3. **Dupla Barreira de Segurança no Desconto (`PE01` / `UC16` — `[Atende RN01, RN14, D03, D04, D06]`):**
    - O fragmento `opt` verifica primeiro a autorização via `usuarioGerente.possuiPermissao("APLICAR_DESCONTO")`, depois garante `fatura.calcularTotalPago() == 0` (bloqueando descontos pós-parcelamento) e valida `cupom.validar()`, devolvendo o demonstrativo atualizado para a `TelaCheckOut`.
 4. **Fracionamento de Pagamentos em Laço (`UC14` — `[Atende RN15, RN16]`):**
    - O fragmento `loop` permite múltiplos lançamentos (`PIX`, `Cartão de Crédito`, `Dinheiro`) na mesma sessão ou a interrupção parcial (`FA03b`), instanciando objetos `Pagamento` via mensagem `<<create>>`.
-5. **Encerramento Atômico e Emissão Condicional de Recibo (`PE02` / `UC15` — `[Atende RN07, RN17, RN18, RN19]`):**
-   - Fora do laço, o fragmento `alt [quitada == true]` agrupa em transação atômica `reserva.finalizar(agora)`, `quarto.liberar()` (`DISPONIVEL`), `quarto.atualizarLimpeza(SUJO)` e `commitEncerramento(...)`, acionando `GeradorReciboService.emitirReciboTexto(fatura)` somente após a quitação integral. No ramo `else`, setas explícitas de retorno informam a retenção da reserva `EM_ANDAMENTO` e do quarto `OCUPADO`.
+5. **Encerramento em Transação Única, Responsabilidade Única e Recibo Pós-Commit (`PE02` / `UC15` — `[Atende RN07, RN16, RN17, RN18, RN19]`):**
+   - A parcela quitadora e o encerramento compartilham a **mesma transação JDBC (`commitPagamentoFinalEEncerramento`)**, impedindo que uma falha deixe a fatura `PAGA` com o quarto ainda `OCUPADO`.
+   - A responsabilidade de chamar `quarto.liberar()` e `quarto.atualizarLimpeza(SUJO)` fica encapsulada exclusivamente dentro de `reserva.finalizar(agora)`, sem duplicidade no serviço.
+   - Somente após o `commit` bem-sucedido é acionado `GeradorReciboService.emitirReciboTexto(fatura)`. No ramo `else`, se nenhum ou apenas parte do pagamento ocorreu, a fatura permanece `AGUARDANDO_PAGAMENTO` ou `PARCIALMENTE_PAGA`.
 
 ---
 
@@ -48,7 +50,7 @@ Todas as chamadas sobre objetos de negócio obedecem **100% às assinaturas do D
 
 ## 4. Código PlantUML Consolidado
 
-*(Espelho exato do arquivo [E7_Diagrama_de_Sequencia.puml](file:///home/cauez/hotelaria/docs/diagramas/E7_Diagrama_de_Sequencia.puml))*
+*(Espelho exato do arquivo [E7_Diagrama_de_Sequencia.puml](diagramas/E7_Diagrama_de_Sequencia.puml))*
 
 ```plantuml
 @startuml E7_Diagrama_de_Sequencia
@@ -62,16 +64,27 @@ actor "Recepcionista" as Rec
 actor "Gerente" as Ger
 boundary "TelaCheckOut" as Tela
 control "CheckOutService" as Ctrl
-database "CheckOutDAO\n(Reserva/Fatura/Cupom)" as DAO
-entity "usuarioGerente :\nUsuario" as Usr
-entity "reserva :\nReserva" as Res
-entity "quarto :\nQuarto" as Qto
-entity "categoria :\nCategoriaQuarto" as Cat
-entity "fatura :\nFatura" as Fat
-entity "cupom :\nCupomDesconto" as Cup
-entity "pagamento :\nPagamento" as Pag
+database "CheckOutDAO
+(Reserva/Fatura/Cupom)" as DAO
+entity "usuarioGerente :
+Usuario" as Usr
+entity "reserva :
+Reserva" as Res
+entity "quarto :
+Quarto" as Qto
+entity "categoria :
+CategoriaQuarto" as Cat
+entity "fatura :
+Fatura" as Fat
+entity "cupom :
+CupomDesconto" as Cup
+entity "pagamento :
+Pagamento" as Pag
 control "GeradorReciboService" as ReciboSvc
 
+' =========================================================
+' 1. ABERTURA OU RETOMADA DO CHECK-OUT [RN07, RN13, RN16, D05, D06]
+' =========================================================
 Rec -> Tela : iniciarCheckOut(idReserva)
 activate Tela
 Tela -> Ctrl : iniciarCheckOut(idReserva)
@@ -91,7 +104,8 @@ else reserva EM_ANDAMENTO [RN07]
     DAO --> Ctrl : faturaExistente
     deactivate DAO
 
-    alt faturaExistente != null [FA01 – Retomada de Fatura Parcial]
+    alt faturaExistente != null [FA01 – Retomada de Fatura Aberta]
+        Ctrl -> Fat : atualizarSeProrrogada(hoje)
         Ctrl -> Fat : calcularValorLiquido()
         Fat --> Ctrl : valorLiquido
     else primeira abertura do Check-out [RN13, D05, D06]
@@ -122,6 +136,9 @@ else reserva EM_ANDAMENTO [RN07]
     Ctrl --> Tela : apresentarDemonstrativo(fatura, saldoAtual)
     Tela --> Rec : exibirValoresDetalhados()
 
+    ' =========================================================
+    ' 2. EXTENSÃO OPCIONAL PE01 – CUPOM DE DESCONTO (UC16) [RN01, RN14, D03, D06]
+    ' =========================================================
     opt [PE01: Gerente solicita desconto antes do 1º pagamento]
         Ger -> Tela : informarCupom(codigoCupom, usuarioGerente)
         Tela -> Ctrl : aplicarCupom(idFatura, codigoCupom, usuarioGerente)
@@ -168,6 +185,9 @@ else reserva EM_ANDAMENTO [RN07]
         end
     end
 
+    ' =========================================================
+    ' 3. INCLUSÃO OBRIGATÓRIA – REGISTRAR PAGAMENTOS (UC14) [RN15, RN16]
+    ' =========================================================
     loop [enquanto saldoDevedor > 0 && Recepcionista registrar parcela]
         Rec -> Tela : informarPagamento(valor, formaPagamento)
         Tela -> Ctrl : registrarPagamento(idFatura, valor, formaPagamento)
@@ -181,38 +201,39 @@ else reserva EM_ANDAMENTO [RN07]
             Fat -> Fat : atualizarStatusFatura() [PARCIALMENTE_PAGA ou PAGA]
             Fat --> Ctrl : statusAtualizado
             deactivate Fat
-            Ctrl -> DAO : salvarPagamentoEAtualizarFatura(pagamento, fatura)
-            Ctrl -> Fat : calcularSaldoDevedor()
-            Fat --> Ctrl : saldoRestante
-            Ctrl --> Tela : confirmarParcela(statusAtualizado, saldoRestante)
-            Tela --> Rec : exibirSaldoEStatusFatura()
+
+            alt fatura.estaQuitada() == false [Parcela Parcial]
+                Ctrl -> DAO : salvarPagamentoEAtualizarFatura(pagamento, fatura)
+                Ctrl -> Fat : calcularSaldoDevedor()
+                Fat --> Ctrl : saldoRestante
+                Ctrl --> Tela : confirmarParcela(statusAtualizado, saldoRestante)
+                Tela --> Rec : exibirSaldoEStatusFatura()
+            else fatura.estaQuitada() == true [Parcela Quitadora: persiste junto ao encerramento]
+                Ctrl -> Fat : calcularSaldoDevedor()
+                Fat --> Ctrl : saldoZero
+            end
         else valor ou forma inválidos [FE05]
             Ctrl --> Tela : rejeitarPagamento("Valor deve ser positivo e <= saldo devedor")
             Tela --> Rec : solicitarNovoValor()
         end
     end
 
+    ' =========================================================
+    ' 4. VERIFICAÇÃO DE QUITAÇÃO, LIBERAÇÃO ATÔMICA E RECIBO (UC15) [RN17, RN18, RN19]
+    ' =========================================================
     Ctrl -> Fat : estaQuitada()
     Fat --> Ctrl : quitada
 
-    alt quitada == true [PE02 – Quitação Integral Atingida]
-        group Transação Atômica de Encerramento [RN07, RN17, RN19, D05]
+    alt quitada == true [PE02 – Quitação Integral e Encerramento em Transação Única]
+        group Transação Atômica Única JDBC [Pagamento Final + Fatura + Reserva + Quarto]
             Ctrl -> Res : finalizar(agora)
             activate Res
+            Res -> Qto : liberar() [DISPONIVEL]
+            Res -> Qto : atualizarLimpeza(SUJO) [RN17]
             Res --> Ctrl : status = FINALIZADA
             deactivate Res
 
-            Ctrl -> Qto : liberar()
-            activate Qto
-            Qto --> Ctrl : statusOcupacao = DISPONIVEL
-            deactivate Qto
-
-            Ctrl -> Qto : atualizarLimpeza(SUJO)
-            activate Qto
-            Qto --> Ctrl : statusLimpeza = SUJO
-            deactivate Qto
-
-            Ctrl -> DAO : commitEncerramento(reserva, quarto, fatura)
+            Ctrl -> DAO : commitPagamentoFinalEEncerramento(pagamentoFinal, fatura, reserva, quarto)
         end
 
         Ctrl -> ReciboSvc : emitirReciboTexto(fatura)
@@ -222,9 +243,9 @@ else reserva EM_ANDAMENTO [RN07]
 
         Ctrl --> Tela : concluirCheckOut(textoReciboFormatado)
         Tela --> Rec : exibirReciboEMensagemSucesso()
-    else quitada == false [FA03b – Suspensão com Pagamento Parcial]
-        Ctrl --> Tela : suspenderCheckOutParcial(saldoRestante)
-        Tela --> Rec : informarRetencao("Fatura Parcialmente Paga; Reserva Em Andamento e Quarto Ocupado")
+    else quitada == false [Suspensão sem Quitação: AGUARDANDO_PAGAMENTO ou PARCIALMENTE_PAGA]
+        Ctrl --> Tela : suspenderCheckOut(fatura.getStatus(), saldoAtual)
+        Tela --> Rec : informarRetencao("Reserva mantida Em Andamento e Quarto Ocupado")
     end
 end
 

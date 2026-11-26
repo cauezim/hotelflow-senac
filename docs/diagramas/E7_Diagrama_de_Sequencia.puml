@@ -41,7 +41,8 @@ else reserva EM_ANDAMENTO [RN07]
     DAO --> Ctrl : faturaExistente
     deactivate DAO
 
-    alt faturaExistente != null [FA01 – Retomada de Fatura Parcial]
+    alt faturaExistente != null [FA01 – Retomada de Fatura Aberta]
+        Ctrl -> Fat : atualizarSeProrrogada(hoje)
         Ctrl -> Fat : calcularValorLiquido()
         Fat --> Ctrl : valorLiquido
     else primeira abertura do Check-out [RN13, D05, D06]
@@ -137,11 +138,17 @@ else reserva EM_ANDAMENTO [RN07]
             Fat -> Fat : atualizarStatusFatura() [PARCIALMENTE_PAGA ou PAGA]
             Fat --> Ctrl : statusAtualizado
             deactivate Fat
-            Ctrl -> DAO : salvarPagamentoEAtualizarFatura(pagamento, fatura)
-            Ctrl -> Fat : calcularSaldoDevedor()
-            Fat --> Ctrl : saldoRestante
-            Ctrl --> Tela : confirmarParcela(statusAtualizado, saldoRestante)
-            Tela --> Rec : exibirSaldoEStatusFatura()
+
+            alt fatura.estaQuitada() == false [Parcela Parcial]
+                Ctrl -> DAO : salvarPagamentoEAtualizarFatura(pagamento, fatura)
+                Ctrl -> Fat : calcularSaldoDevedor()
+                Fat --> Ctrl : saldoRestante
+                Ctrl --> Tela : confirmarParcela(statusAtualizado, saldoRestante)
+                Tela --> Rec : exibirSaldoEStatusFatura()
+            else fatura.estaQuitada() == true [Parcela Quitadora: persiste junto ao encerramento]
+                Ctrl -> Fat : calcularSaldoDevedor()
+                Fat --> Ctrl : saldoZero
+            end
         else valor ou forma inválidos [FE05]
             Ctrl --> Tela : rejeitarPagamento("Valor deve ser positivo e <= saldo devedor")
             Tela --> Rec : solicitarNovoValor()
@@ -149,29 +156,21 @@ else reserva EM_ANDAMENTO [RN07]
     end
 
     ' =========================================================
-    ' 4. VERIFICAÇÃO DE QUITAÇÃO, LIBERAÇÃO E RECIBO (UC15) [RN17, RN18, RN19]
+    ' 4. VERIFICAÇÃO DE QUITAÇÃO, LIBERAÇÃO ATÔMICA E RECIBO (UC15) [RN17, RN18, RN19]
     ' =========================================================
     Ctrl -> Fat : estaQuitada()
     Fat --> Ctrl : quitada
 
-    alt quitada == true [PE02 – Quitação Integral Atingida]
-        group Transação Atômica de Encerramento [RN07, RN17, RN19, D05]
+    alt quitada == true [PE02 – Quitação Integral e Encerramento em Transação Única]
+        group Transação Atômica Única JDBC [Pagamento Final + Fatura + Reserva + Quarto]
             Ctrl -> Res : finalizar(agora)
             activate Res
+            Res -> Qto : liberar() [DISPONIVEL]
+            Res -> Qto : atualizarLimpeza(SUJO) [RN17]
             Res --> Ctrl : status = FINALIZADA
             deactivate Res
 
-            Ctrl -> Qto : liberar()
-            activate Qto
-            Qto --> Ctrl : statusOcupacao = DISPONIVEL
-            deactivate Qto
-
-            Ctrl -> Qto : atualizarLimpeza(SUJO)
-            activate Qto
-            Qto --> Ctrl : statusLimpeza = SUJO
-            deactivate Qto
-
-            Ctrl -> DAO : commitEncerramento(reserva, quarto, fatura)
+            Ctrl -> DAO : commitPagamentoFinalEEncerramento(pagamentoFinal, fatura, reserva, quarto)
         end
 
         Ctrl -> ReciboSvc : emitirReciboTexto(fatura)
@@ -181,9 +180,9 @@ else reserva EM_ANDAMENTO [RN07]
 
         Ctrl --> Tela : concluirCheckOut(textoReciboFormatado)
         Tela --> Rec : exibirReciboEMensagemSucesso()
-    else quitada == false [FA03b – Suspensão com Pagamento Parcial]
-        Ctrl --> Tela : suspenderCheckOutParcial(saldoRestante)
-        Tela --> Rec : informarRetencao("Fatura Parcialmente Paga; Reserva Em Andamento e Quarto Ocupado")
+    else quitada == false [Suspensão sem Quitação: AGUARDANDO_PAGAMENTO ou PARCIALMENTE_PAGA]
+        Ctrl --> Tela : suspenderCheckOut(fatura.getStatus(), saldoAtual)
+        Tela --> Rec : informarRetencao("Reserva mantida Em Andamento e Quarto Ocupado")
     end
 end
 

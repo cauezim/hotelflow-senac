@@ -76,7 +76,7 @@ A **fronteira do sistema** delimita o que é responsabilidade automatizada pelo 
 
 ## 5. Código PlantUML Consolidado
 
-Arquivo-fonte oficial mantido em: [E2_Casos_de_Uso_Geral.puml](file:///home/cauez/hotelaria/docs/diagramas/E2_Casos_de_Uso_Geral.puml)
+Arquivo-fonte oficial mantido em: [E2_Casos_de_Uso_Geral.puml](diagramas/E2_Casos_de_Uso_Geral.puml)
 
 ```plantuml
 @startuml E2_Casos_de_Uso_Geral

@@ -102,6 +102,7 @@ class Fatura {
     - valorDesconto : BigDecimal
     - status : StatusFatura
     + calcularValorBruto() : BigDecimal
+    + atualizarSeProrrogada(dataSaidaAtual : LocalDate) : boolean
     + aplicarDesconto(cupom : CupomDesconto) : void
     + calcularValorLiquido() : BigDecimal
     + registrarPagamento(pagamento : Pagamento) : void

@@ -2,15 +2,15 @@
 **Projeto:** HotelFlow – Sistema de Gestão Hoteleira (SENAC)  
 **Disciplinas Integradas:** Análise Orientada a Objetos (AOO) e Programação Orientada a Objetos (POO)  
 **Artefatos Físicos:**
-- **DER PlantUML:** [E8_DER_Logico_Fisico.puml](file:///home/cauez/hotelaria/docs/diagramas/E8_DER_Logico_Fisico.puml) | **Prancha Visual:** [E8_DER_Logico_Fisico.pdf](file:///home/cauez/hotelaria/docs/diagramas/E8_DER_Logico_Fisico.pdf)
-- **Script DDL (Estrutura):** [01_schema_hotelflow.sql](file:///home/cauez/hotelaria/sql/01_schema_hotelflow.sql)
-- **Script DML (Seed Inicial):** [02_seed_dados_iniciais.sql](file:///home/cauez/hotelaria/sql/02_seed_dados_iniciais.sql)
+- **DER PlantUML:** [E8_DER_Logico_Fisico.puml](diagramas/E8_DER_Logico_Fisico.puml) | **Prancha Visual:** [E8_DER_Logico_Fisico.pdf](diagramas/E8_DER_Logico_Fisico.pdf)
+- **Script DDL (Estrutura):** [01_schema_hotelflow.sql](../sql/01_schema_hotelflow.sql)
+- **Script DML (Seed Inicial):** [02_seed_dados_iniciais.sql](../sql/02_seed_dados_iniciais.sql)
 
 ---
 
 ## 1. Estratégia de Mapeamento Objeto-Relacional (ORM Manual / JDBC)
 
-O esquema relacional em **MySQL 8.0+ (`InnoDB`, `utf8mb4_0900_ai_ci`)** traduz de forma bijetora (`1:1`) as **10 classes de domínio** e **6 enumerações** definidas na [Etapa E5](file:///home/cauez/hotelaria/docs/E5_Diagrama_de_Classes.md). Abaixo estão as **5 decisões de engenharia de dados** adotadas e suas justificativas para avaliação acadêmica:
+O esquema relacional em **MySQL 8.0+ (`InnoDB`, `utf8mb4_0900_ai_ci`)** traduz de forma bijetora (`1:1`) as **10 classes de domínio** e **6 enumerações** definidas na [Etapa E5](E5_Diagrama_de_Classes.md). Abaixo estão as **5 decisões de engenharia de dados** adotadas e suas justificativas para avaliação acadêmica:
 
 1. **Padrão de Nomenclatura (`CamelCase` $\leftrightarrow$ `snake_case`) e Chaves Substitutas (*Surrogate Keys*):**
    - Classes Java em `PascalCase` e atributos em `camelCase` mapeiam para tabelas e colunas em `snake_case` no singular (ex.: `ConsumoFrigobar.valorUnitario` $\rightarrow$ `consumo_frigobar.valor_unitario`).
@@ -57,14 +57,20 @@ O esquema relacional em **MySQL 8.0+ (`InnoDB`, `utf8mb4_0900_ai_ci`)** traduz d
   Dois períodos `[iniA, fimA)` e `[iniB, fimB)` possuem sobreposição se, e somente se, `iniA < fimB AND fimA > iniB` (com tratamento especial caso ambos sejam *day-use* de mesmo dia `ini == fim`). Assim, um check-out previsto para `2026-12-08` **não bloqueia** um novo check-in em `2026-12-08`:
 
 ```sql
--- Retorna > 0 se houver conflito para o quarto no período [?, ?) [Atende RN06, D02]
+-- Retorna > 0 se houver conflito para o quarto no período [?, ?), incluindo day-use [Atende RN06, D02]
 SELECT COUNT(*) AS total_conflitos
 FROM reserva r
 WHERE r.id_quarto = ?
   AND r.id_reserva <> ?
   AND r.status IN ('CONFIRMADA', 'EM_ANDAMENTO')
-  AND r.data_checkin_prevista < ?   -- parametro: novaDataCheckOutPrevista
-  AND r.data_checkout_prevista > ?; -- parametro: novaDataCheckInPrevista
+  AND r.data_checkin_prevista < ? -- parametro: fimEfetivoProposto (se ini == fim, soma +1 dia)
+  AND (
+      CASE
+          WHEN r.data_checkout_prevista = r.data_checkin_prevista
+              THEN DATE_ADD(r.data_checkin_prevista, INTERVAL 1 DAY)
+          ELSE r.data_checkout_prevista
+      END
+  ) > ?;                          -- parametro: novaDataCheckInPrevista
 ```
 
 ### 3.2 Consulta de Histórico de Reservas Finalizadas do Hóspede (`[Atende RN19]`)
@@ -88,14 +94,15 @@ ORDER BY r.data_hora_checkout DESC;
   Para um mês `[primeiroDiaMes, primeiroDiaMesSeguinte)`, recorta-se a interseção de cada estadia efetiva (`EM_ANDAMENTO` ou `FINALIZADA`) com a janela do mês e divide-se pela capacidade instalada (`totalQuartos * diasNoMes`):
 
 ```sql
--- Apura quartos-dia ocupados dentro da janela [inicioMes, fimMesExclusivo) [Atende RN20, D05]
+-- Apura quartos-dia ocupados dentro da janela [inicioMes, limiteEfetivoMes) [Atende RN20, D05]
+-- Para reservas EM_ANDAMENTO, limita até LEAST(CURDATE(), fimMesExclusivo) sem projetar dias futuros
 SELECT
     q.numero,
     c.nome AS categoria,
     COALESCE(SUM(
         GREATEST(0, DATEDIFF(
-            LEAST(COALESCE(DATE(r.data_hora_checkout), ?), ?), -- fimMesExclusivo
-            GREATEST(DATE(r.data_hora_checkin), ?)             -- inicioMes
+            LEAST(COALESCE(DATE(r.data_hora_checkout), LEAST(CURDATE(), ?)), ?), -- fimMesExclusivo
+            GREATEST(DATE(r.data_hora_checkin), ?)                               -- inicioMes
         ))
     ), 0) AS diarias_ocupadas_no_mes
 FROM quarto q
@@ -103,8 +110,8 @@ INNER JOIN categoria_quarto c ON c.id_categoria = q.id_categoria
 LEFT JOIN reserva r
        ON r.id_quarto = q.id_quarto
       AND r.status IN ('EM_ANDAMENTO', 'FINALIZADA')
-      AND DATE(r.data_hora_checkin) < ?                        -- fimMesExclusivo
-      AND COALESCE(DATE(r.data_hora_checkout), ?) > ?          -- inicioMes
+      AND DATE(r.data_hora_checkin) < ?                                          -- fimMesExclusivo
+      AND COALESCE(DATE(r.data_hora_checkout), LEAST(CURDATE(), ?)) > ?          -- inicioMes
 GROUP BY q.id_quarto, q.numero, c.nome
 ORDER BY q.numero;
 ```
@@ -113,7 +120,7 @@ ORDER BY q.numero;
 
 ## 4. Código PlantUML do DER (`Crow's Foot`)
 
-*(Espelho exato do arquivo [E8_DER_Logico_Fisico.puml](file:///home/cauez/hotelaria/docs/diagramas/E8_DER_Logico_Fisico.puml))*
+*(Espelho exato do arquivo [E8_DER_Logico_Fisico.puml](diagramas/E8_DER_Logico_Fisico.puml))*
 
 ```plantuml
 @startuml E8_DER_Logico_Fisico

@@ -1,13 +1,13 @@
 # Etapa E5 – Diagrama de Classes de Domínio
 **Projeto:** HotelFlow – Sistema de Gestão Hoteleira (SENAC)  
 **Disciplinas Integradas:** Análise Orientada a Objetos (AOO) e Programação Orientada a Objetos (POO)  
-**Código-fonte PlantUML:** [E5_Diagrama_de_Classes.puml](file:///home/cauez/hotelaria/docs/diagramas/E5_Diagrama_de_Classes.puml) (`[Atende RN01..RN20, D01..D06]`)
+**Código-fonte PlantUML:** [E5_Diagrama_de_Classes.puml](diagramas/E5_Diagrama_de_Classes.puml) (`[Atende RN01..RN20, D01..D06]`)
 
 ---
 
 ## 1. Visão Arquitetural do Modelo de Domínio
 
-O Diagrama de Classes consolida as **10 entidades de domínio** e **6 enumerações tipadas** extraídas na [Etapa E4](file:///home/cauez/hotelaria/docs/E4_Analise_Gramatical_Abbott.md), seguindo rigorosamente os princípios de **Domínio Rico** (evitando modelos anêmicos) e **Alta Coesão / Baixo Acoplamento (GRASP)**:
+O Diagrama de Classes consolida as **10 entidades de domínio** e **6 enumerações tipadas** extraídas na [Etapa E4](E4_Analise_Gramatical_Abbott.md), seguindo rigorosamente os princípios de **Domínio Rico** (evitando modelos anêmicos) e **Alta Coesão / Baixo Acoplamento (GRASP)**:
 
 - As referências entre objetos (`hospede`, `quarto`, `categoria`, `consumos`, `servicos`, `fatura`, `cupom`, `pagamentos`) são representadas diretamente como **papéis (*role names*) nas extremidades das associações UML**, evitando duplicar chaves estrangeiras dentro das caixas de atributos conceituais.
 - Componentes de infraestrutura, geração textual de comprovantes (`GeradorReciboService` — `RN18`), envio de e-mail (`EmailService` — `RN08`) e agregações analíticas mensais (`RelatorioOcupacaoService` — `RN20`) não poluem as entidades de domínio e serão alocados na camada `service` na Etapa `E9`.
@@ -68,7 +68,7 @@ O Diagrama de Classes consolida as **10 entidades de domínio** e **6 enumeraç�
 
 ## 5. Código PlantUML Consolidado
 
-*(Espelho exato do arquivo [E5_Diagrama_de_Classes.puml](file:///home/cauez/hotelaria/docs/diagramas/E5_Diagrama_de_Classes.puml))*
+*(Espelho exato do arquivo [E5_Diagrama_de_Classes.puml](diagramas/E5_Diagrama_de_Classes.puml))*
 
 ```plantuml
 @startuml E5_Diagrama_de_Classes
@@ -171,6 +171,7 @@ class Fatura {
     - valorDesconto : BigDecimal
     - status : StatusFatura
     + calcularValorBruto() : BigDecimal
+    + atualizarSeProrrogada(dataSaidaAtual : LocalDate) : boolean
     + aplicarDesconto(cupom : CupomDesconto) : void
     + calcularValorLiquido() : BigDecimal
     + registrarPagamento(pagamento : Pagamento) : void

@@ -1,7 +1,7 @@
 # Etapa E4 – Análise Gramatical de Abbott
 **Projeto:** HotelFlow – Sistema de Gestão Hoteleira (SENAC)  
 **Disciplinas Integradas:** Análise Orientada a Objetos (AOO) e Programação Orientada a Objetos (POO)  
-**Base de Rastreabilidade:** `RN01` a `RN20`, Decisões `D01` a `D06` ([E1](file:///home/cauez/hotelaria/docs/E1_Analise_Requisitos_e_Glossario.md)), Casos de Uso ([E2](file:///home/cauez/hotelaria/docs/E2_Atores_e_Casos_de_Uso.md)) e Especificação `UC13` ([E3](file:///home/cauez/hotelaria/docs/E3_Especificacao_Caso_de_Uso.md)).
+**Base de Rastreabilidade:** `RN01` a `RN20`, Decisões `D01` a `D06` ([E1](E1_Analise_Requisitos_e_Glossario.md)), Casos de Uso ([E2](E2_Atores_e_Casos_de_Uso.md)) e Especificação `UC13` ([E3](E3_Especificacao_Caso_de_Uso.md)).
 
 ---
 

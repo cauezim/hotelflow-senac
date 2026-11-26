@@ -1,6 +1,6 @@
 -- =============================================================================
 -- HotelFlow – Sistema de Gestão Hoteleira (SENAC)
--- Etapa E8: Script DDL Físico para MySQL 8.0+
+-- Etapa E8: Script DDL Físico Idempotente para MySQL 8.0+
 -- Rastreabilidade Completa: [Atende RN01 a RN20 e Decisões D01 a D06]
 -- Engine: InnoDB (Suporte ACID a Transações e Chaves Estrangeiras)
 -- Charset: utf8mb4 / Collation: utf8mb4_0900_ai_ci
@@ -12,23 +12,27 @@ CREATE DATABASE IF NOT EXISTS hotelflow
 
 USE hotelflow;
 
--- Ordem reversa de dependências para recriação limpa em ambiente de testes
-DROP TABLE IF EXISTS pagamento;
-DROP TABLE IF EXISTS fatura;
-DROP TABLE IF EXISTS servico_quarto;
-DROP TABLE IF EXISTS consumo_frigobar;
-DROP TABLE IF EXISTS reserva;
-DROP TABLE IF EXISTS cupom_desconto;
-DROP TABLE IF EXISTS quarto;
-DROP TABLE IF EXISTS categoria_quarto;
-DROP TABLE IF EXISTS hospede;
-DROP TABLE IF EXISTS usuario;
+-- =============================================================================
+-- ATENÇÃO: Os comandos DROP TABLE abaixo estão COMENTADOS por padrão para evitar
+-- perda acidental de dados ao reexecutar o script no MySQL Workbench.
+-- Descomente-os APENAS se desejar recriar o banco do zero em ambiente de teste.
+-- =============================================================================
+-- DROP TABLE IF EXISTS pagamento;
+-- DROP TABLE IF EXISTS fatura;
+-- DROP TABLE IF EXISTS servico_quarto;
+-- DROP TABLE IF EXISTS consumo_frigobar;
+-- DROP TABLE IF EXISTS reserva;
+-- DROP TABLE IF EXISTS cupom_desconto;
+-- DROP TABLE IF EXISTS quarto;
+-- DROP TABLE IF EXISTS categoria_quarto;
+-- DROP TABLE IF EXISTS hospede;
+-- DROP TABLE IF EXISTS usuario;
 
 -- =============================================================================
 -- 1. TABELA: usuario [Atende RN01, D04]
 -- Autenticação por login/senha (hash SHA-256) e controle de acesso por perfil.
 -- =============================================================================
-CREATE TABLE usuario (
+CREATE TABLE IF NOT EXISTS usuario (
     id_usuario INT AUTO_INCREMENT,
     nome       VARCHAR(120) NOT NULL,
     login      VARCHAR(60)  NOT NULL,
@@ -42,9 +46,9 @@ CREATE TABLE usuario (
 
 -- =============================================================================
 -- 2. TABELA: hospede [Atende RN02, RN19]
--- Cadastro de clientes (CPF ou Passaporte único) e base do histórico.
+-- Cadastro de clientes (CPF ou Passaporte padronizado sem pontuação) e histórico.
 -- =============================================================================
-CREATE TABLE hospede (
+CREATE TABLE IF NOT EXISTS hospede (
     id_hospede    INT AUTO_INCREMENT,
     nome_completo VARCHAR(150) NOT NULL,
     documento     VARCHAR(30)  NOT NULL,
@@ -60,7 +64,7 @@ CREATE TABLE hospede (
 -- 3. TABELA: categoria_quarto [Atende RN03, RN04]
 -- Classificação das acomodações (Standard, Luxo, Suíte) e tarifa diária vigente.
 -- =============================================================================
-CREATE TABLE categoria_quarto (
+CREATE TABLE IF NOT EXISTS categoria_quarto (
     id_categoria  INT AUTO_INCREMENT,
     nome          VARCHAR(30)    NOT NULL,
     tarifa_diaria DECIMAL(10, 2) NOT NULL,
@@ -75,7 +79,7 @@ CREATE TABLE categoria_quarto (
 -- 4. TABELA: quarto [Atende RN03, RN09, RN12, RN17, D01]
 -- Unidade habitacional com estados ortogonais de Ocupação e Governança/Limpeza.
 -- =============================================================================
-CREATE TABLE quarto (
+CREATE TABLE IF NOT EXISTS quarto (
     id_quarto         INT AUTO_INCREMENT,
     id_categoria      INT         NOT NULL,
     numero            VARCHAR(10) NOT NULL,
@@ -93,16 +97,15 @@ CREATE TABLE quarto (
     CONSTRAINT chk_quarto_andar CHECK (andar >= 0),
     CONSTRAINT chk_quarto_capacidade CHECK (capacidade_maxima > 0),
     CONSTRAINT chk_quarto_ocupacao CHECK (status_ocupacao IN ('DISPONIVEL', 'OCUPADO')),
-    CONSTRAINT chk_quarto_limpeza CHECK (status_limpeza IN ('SUJO', 'EM_LIMPEZA', 'LIMPO'))
+    CONSTRAINT chk_quarto_limpeza CHECK (status_limpeza IN ('SUJO', 'EM_LIMPEZA', 'LIMPO')),
+    INDEX idx_quarto_status (status_ocupacao, status_limpeza)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE INDEX idx_quarto_status ON quarto (status_ocupacao, status_limpeza);
 
 -- =============================================================================
 -- 5. TABELA: cupom_desconto [Atende RN14, D03, D06]
 -- Cupons percentuais pré-cadastrados para abatimento autorizado pelo Gerente.
 -- =============================================================================
-CREATE TABLE cupom_desconto (
+CREATE TABLE IF NOT EXISTS cupom_desconto (
     id_cupom   INT AUTO_INCREMENT,
     codigo     VARCHAR(30)   NOT NULL,
     percentual DECIMAL(5, 2) NOT NULL,
@@ -117,7 +120,7 @@ CREATE TABLE cupom_desconto (
 -- 6. TABELA: reserva [Atende RN05..RN09, RN13, RN17, RN19, RN20, D01, D02, D05]
 -- Agendamento previsto e registro efetivo de entrada/saída da estadia.
 -- =============================================================================
-CREATE TABLE reserva (
+CREATE TABLE IF NOT EXISTS reserva (
     id_reserva             INT AUTO_INCREMENT,
     id_hospede             INT         NOT NULL,
     id_quarto              INT         NOT NULL,
@@ -145,27 +148,18 @@ CREATE TABLE reserva (
     CONSTRAINT chk_reserva_datas_efetivas CHECK (
         data_hora_checkout IS NULL
         OR (data_hora_checkin IS NOT NULL AND data_hora_checkout >= data_hora_checkin)
-    )
+    ),
+    -- Índices compostos orientados às consultas críticas [RN06, RN19, RN20]:
+    INDEX idx_reserva_conflito (id_quarto, status, data_checkin_prevista, data_checkout_prevista),
+    INDEX idx_reserva_historico (id_hospede, status),
+    INDEX idx_reserva_ocupacao (status, data_hora_checkin, data_hora_checkout)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- Índices compostos orientados às consultas críticas do sistema:
--- [Atende RN06, D02]: Verificação rápida de sobreposição de datas por quarto
-CREATE INDEX idx_reserva_conflito
-    ON reserva (id_quarto, status, data_checkin_prevista, data_checkout_prevista);
-
--- [Atende RN19]: Histórico de reservas finalizadas de um hóspede
-CREATE INDEX idx_reserva_historico
-    ON reserva (id_hospede, status);
-
--- [Atende RN20, D05]: Apuração de taxa de ocupação efetiva em um mês específico
-CREATE INDEX idx_reserva_ocupacao
-    ON reserva (status, data_hora_checkin, data_hora_checkout);
 
 -- =============================================================================
 -- 7. TABELA: consumo_frigobar [Atende RN10, RN13]
 -- Itens consumidos no frigobar durante a estadia ativa.
 -- =============================================================================
-CREATE TABLE consumo_frigobar (
+CREATE TABLE IF NOT EXISTS consumo_frigobar (
     id_consumo         INT AUTO_INCREMENT,
     id_reserva         INT            NOT NULL,
     produto            VARCHAR(100)   NOT NULL,
@@ -179,16 +173,15 @@ CREATE TABLE consumo_frigobar (
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
     CONSTRAINT chk_consumo_quantidade CHECK (quantidade > 0),
-    CONSTRAINT chk_consumo_valor_unit CHECK (valor_unitario > 0.00)
+    CONSTRAINT chk_consumo_valor_unit CHECK (valor_unitario > 0.00),
+    INDEX idx_consumo_reserva (id_reserva)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE INDEX idx_consumo_reserva ON consumo_frigobar (id_reserva);
 
 -- =============================================================================
 -- 8. TABELA: servico_quarto [Atende RN11, RN13]
 -- Solicitações e registros de serviços extras (lavanderia, refeições, etc.).
 -- =============================================================================
-CREATE TABLE servico_quarto (
+CREATE TABLE IF NOT EXISTS servico_quarto (
     id_servico            INT AUTO_INCREMENT,
     id_reserva            INT            NOT NULL,
     data_hora_solicitacao DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -200,17 +193,16 @@ CREATE TABLE servico_quarto (
         REFERENCES reserva (id_reserva)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
-    CONSTRAINT chk_servico_valor CHECK (valor > 0.00)
+    CONSTRAINT chk_servico_valor CHECK (valor > 0.00),
+    INDEX idx_servico_reserva (id_reserva)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE INDEX idx_servico_reserva ON servico_quarto (id_reserva);
 
 -- =============================================================================
 -- 9. TABELA: fatura [Atende RN13..RN18, D06]
 -- Consolidação financeira única por reserva (UNIQUE id_reserva) com congelamento
 -- histórico de diárias, tarifa aplicada e desconto gerencial.
 -- =============================================================================
-CREATE TABLE fatura (
+CREATE TABLE IF NOT EXISTS fatura (
     id_fatura              INT AUTO_INCREMENT,
     id_reserva             INT            NOT NULL,
     id_cupom               INT            NULL,
@@ -250,7 +242,7 @@ CREATE TABLE fatura (
 -- 10. TABELA: pagamento [Atende RN15, RN16]
 -- Transações financeiras individuais (únicas ou fracionadas) de uma fatura.
 -- =============================================================================
-CREATE TABLE pagamento (
+CREATE TABLE IF NOT EXISTS pagamento (
     id_pagamento    INT AUTO_INCREMENT,
     id_fatura       INT            NOT NULL,
     valor           DECIMAL(10, 2) NOT NULL,
@@ -265,7 +257,6 @@ CREATE TABLE pagamento (
     CONSTRAINT chk_pagamento_valor CHECK (valor > 0.00),
     CONSTRAINT chk_pagamento_forma CHECK (
         forma_pagamento IN ('CARTAO_CREDITO', 'PIX', 'DINHEIRO')
-    )
+    ),
+    INDEX idx_pagamento_fatura (id_fatura)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE INDEX idx_pagamento_fatura ON pagamento (id_fatura);
