@@ -1,0 +1,139 @@
+@startuml E8_DER_Logico_Fisico
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam class {
+    BackgroundColor #FFFFFF
+    BorderColor #1E293B
+    HeaderBackgroundColor #EFF6FF
+    ArrowColor #334155
+}
+
+title Diagrama Entidade-Relacionamento (DER Lógico/Físico – MySQL 8) – HotelFlow [Atende RN01 a RN20]
+
+entity "usuario" as usuario {
+    * **id_usuario** : INT <<PK, AI>>
+    --
+    * nome : VARCHAR(120)
+    * login : VARCHAR(60) <<UK>>
+    * senha_hash : VARCHAR(255)
+    * perfil : VARCHAR(20) <<CHK>>
+}
+note top of usuario : [Atende RN01, D04]\nCHK: CAMAREIRA | RECEPCIONISTA | GERENTE
+
+entity "hospede" as hospede {
+    * **id_hospede** : INT <<PK, AI>>
+    --
+    * nome_completo : VARCHAR(150)
+    * documento : VARCHAR(30) <<UK>>
+    * telefone : VARCHAR(25)
+    * email : VARCHAR(150)
+    * endereco : VARCHAR(255)
+}
+note top of hospede : [Atende RN02, RN19]
+
+entity "categoria_quarto" as categoria_quarto {
+    * **id_categoria** : INT <<PK, AI>>
+    --
+    * nome : VARCHAR(30) <<UK, CHK>>
+    * tarifa_diaria : DECIMAL(10,2) <<CHK>>
+}
+note bottom of categoria_quarto : [Atende RN03, RN04]\nCHK: Standard | Luxo | Suíte
+
+entity "quarto" as quarto {
+    * **id_quarto** : INT <<PK, AI>>
+    --
+    * id_categoria : INT <<FK>>
+    * numero : VARCHAR(10) <<UK>>
+    * andar : INT <<CHK>>
+    * capacidade_maxima : INT <<CHK>>
+    * status_ocupacao : VARCHAR(20) <<CHK>>
+    * status_limpeza : VARCHAR(20) <<CHK>>
+}
+note top of quarto : [Atende RN03, RN09, RN12, RN17, D01]
+
+entity "reserva" as reserva {
+    * **id_reserva** : INT <<PK, AI>>
+    --
+    * id_hospede : INT <<FK>>
+    * id_quarto : INT <<FK>>
+    * data_checkin_prevista : DATE
+    * data_checkout_prevista : DATE
+    o data_hora_checkin : DATETIME
+    o data_hora_checkout : DATETIME
+    * status : VARCHAR(20) <<CHK>>
+}
+note top of reserva : [Atende RN05..RN09, RN13, RN17, RN19, RN20, D02, D05]\nÍndices: conflito (RN06), histórico (RN19), ocupação (RN20)
+
+entity "consumo_frigobar" as consumo_frigobar {
+    * **id_consumo** : INT <<PK, AI>>
+    --
+    * id_reserva : INT <<FK>>
+    * produto : VARCHAR(100)
+    * quantidade : INT <<CHK>>
+    * valor_unitario : DECIMAL(10,2) <<CHK>>
+    * data_hora_registro : DATETIME
+}
+note right of consumo_frigobar : [Atende RN10, RN13]
+
+entity "servico_quarto" as servico_quarto {
+    * **id_servico** : INT <<PK, AI>>
+    --
+    * id_reserva : INT <<FK>>
+    * data_hora_solicitacao : DATETIME
+    * descricao : VARCHAR(200)
+    * valor : DECIMAL(10,2) <<CHK>>
+}
+note right of servico_quarto : [Atende RN11, RN13]
+
+entity "cupom_desconto" as cupom_desconto {
+    * **id_cupom** : INT <<PK, AI>>
+    --
+    * codigo : VARCHAR(30) <<UK>>
+    * percentual : DECIMAL(5,2) <<CHK>>
+    * ativo : BOOLEAN
+}
+note bottom of cupom_desconto : [Atende RN14, D03, D06]\nCHK: 0 < percentual < 100
+
+entity "fatura" as fatura {
+    * **id_fatura** : INT <<PK, AI>>
+    --
+    * id_reserva : INT <<FK, UK>>
+    o id_cupom : INT <<FK>>
+    * data_emissao : DATETIME
+    * quantidade_diarias : BIGINT <<CHK>>
+    * tarifa_diaria_aplicada : DECIMAL(10,2) <<CHK>>
+    * valor_bruto : DECIMAL(10,2) <<CHK>>
+    * percentual_desconto : DECIMAL(5,2) <<CHK>>
+    * valor_desconto : DECIMAL(10,2) <<CHK>>
+    * status : VARCHAR(25) <<CHK>>
+}
+note left of fatura : [Atende RN13..RN18, D06]\nid_reserva UNIQUE garante 1 : 0..1
+
+entity "pagamento" as pagamento {
+    * **id_pagamento** : INT <<PK, AI>>
+    --
+    * id_fatura : INT <<FK>>
+    * valor : DECIMAL(10,2) <<CHK>>
+    * data_pagamento : DATETIME
+    * forma_pagamento : VARCHAR(20) <<CHK>>
+}
+note bottom of pagamento : [Atende RN15, RN16]\nCHK: CARTAO_CREDITO | PIX | DINHEIRO
+
+' ==========================================
+' RELACIONAMENTOS PÉ-DE-GALINHA (CROW'S FOOT)
+' ==========================================
+
+hospede ||--o{ reserva : "titular de (id_hospede)"
+quarto ||--o{ reserva : "alocado em (id_quarto)"
+categoria_quarto ||--o{ quarto : "classifica (id_categoria)"
+
+reserva ||--o{ consumo_frigobar : "possui (id_reserva)"
+reserva ||--o{ servico_quarto : "possui (id_reserva)"
+reserva ||--o| fatura : "gera 0..1 (id_reserva UK)"
+
+cupom_desconto |o--o{ fatura : "desconta (id_cupom)"
+fatura ||--o{ pagamento : "amortizada por (id_fatura)"
+
+@enduml

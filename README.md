@@ -30,7 +30,7 @@ hotelflow/
 - [x] **E5**: Diagrama de Classes de Domínio — [Ver Documento](docs/E5_Diagrama_de_Classes.md) | [Diagrama .puml](docs/diagramas/E5_Diagrama_de_Classes.puml)
 - [x] **E6**: Diagrama de Estados UML (`Reserva`, `Quarto` e `Fatura`) — [Ver Documento](docs/E6_Diagrama_de_Estados.md) | [Diagrama .puml](docs/diagramas/E6_Diagrama_de_Estados.puml)
 - [x] **E7**: Diagrama de Sequência UML (pagamento, liquidação e encerramento de conta) — [Ver Documento](docs/E7_Diagrama_de_Sequencia.md) | [Diagrama .puml](docs/diagramas/E7_Diagrama_de_Sequencia.puml) | [Caderno Visual .pdf](docs/diagramas/HotelFlow_Modelagem_UML.pdf)
-- [ ] **E8**: Modelagem Lógica e Física de Banco de Dados (MySQL 8)
+- [x] **E8**: Modelagem Lógica e Física de Banco de Dados (MySQL 8) — [Ver Documento](docs/E8_Modelagem_Banco_de_Dados.md) | [DER .puml](docs/diagramas/E8_DER_Logico_Fisico.puml) | [DER .pdf](docs/diagramas/E8_DER_Logico_Fisico.pdf) | [DDL SQL](sql/01_schema_hotelflow.sql) | [Seed SQL](sql/02_seed_dados_iniciais.sql)
 - [ ] **E9**: Definição da Arquitetura Java 17+ (`model`, `dao`, `service`, `view` + JDBC)
 - [ ] **E10**: Implementação incremental dos módulos em Java 17+
 - [ ] **E11**: Testes automatizados (JUnit 5) e Matriz de Rastreabilidade
