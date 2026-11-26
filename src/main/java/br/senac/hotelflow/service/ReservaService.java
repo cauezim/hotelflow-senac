@@ -37,8 +37,12 @@ public class ReservaService {
     private final EmailService emailService;
 
     public ReservaService() {
+        this(new ConsoleEmailService());
+    }
+
+    public ReservaService(EmailService emailService) {
         this(ConnectionFactory.getInstance(), new ReservaDAO(), new HospedeDAO(),
-                new QuartoDAO(), new ConsoleEmailService());
+                new QuartoDAO(), emailService);
     }
 
     public ReservaService(ConnectionFactory connectionFactory, ReservaDAO reservaDAO,

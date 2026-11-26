@@ -2,12 +2,13 @@ package br.senac.hotelflow.view;
 
 import br.senac.hotelflow.config.ConnectionFactory;
 import java.sql.Connection;
+import javax.swing.SwingUtilities;
 
 /**
- * Ponto de entrada principal (Bootstrap {@code v0.2-alpha}) da aplicação HotelFlow.
+ * Ponto de entrada principal da aplicação desktop HotelFlow ({@code v0.9.0-beta}).
  *
- * <p>Regra Arquitetural: a camada {@code view} interage exclusivamente com a camada {@code service}
- * (e DTOs/entidades de leitura), sem executar SQL diretamente nem concentrar regras de negócio.
+ * <p>Inicializa o tema visual Java Swing ({@code Nimbus}) na Event Dispatch Thread (EDT)
+ * e apresenta a {@link TelaLoginFrame}.
  *
  * <p>Rastreabilidade: {@code [Atende RN01..RN20]}
  */
@@ -16,15 +17,18 @@ public class HotelFlowApp {
     public static void main(String[] args) {
         System.out.println("==========================================================");
         System.out.println("  HotelFlow - Sistema de Gestao Hoteleira (SENAC)         ");
-        System.out.println("  Versao: v0.2.0-alpha (Dominio Rico + Arquitetura JDBC)  ");
+        System.out.println("  Versao: v0.9.0-beta (Interface Desktop Java Swing)      ");
         System.out.println("==========================================================");
 
         if (args != null && args.length > 0 && "--check-db".equalsIgnoreCase(args[0])) {
             diagnosticarConexaoBanco();
-        } else {
-            System.out.println("Estrutura arquitetural e modelo de dominio carregados com sucesso.");
-            System.out.println("Dica: execute com '--check-db' para testar a conexao MySQL 8.");
         }
+
+        UiTheme.configurarLookAndFeel();
+        SwingUtilities.invokeLater(() -> {
+            TelaLoginFrame loginFrame = new TelaLoginFrame();
+            loginFrame.setVisible(true);
+        });
     }
 
     private static void diagnosticarConexaoBanco() {
