@@ -13,10 +13,15 @@ import br.senac.hotelflow.model.Usuario;
 import br.senac.hotelflow.model.enums.PerfilUsuario;
 import br.senac.hotelflow.model.enums.StatusReserva;
 import br.senac.hotelflow.service.ReservaService;
+import br.senac.hotelflow.service.notificacao.EmailService;
+import br.senac.hotelflow.service.notificacao.SmtpEmailService;
 import java.math.BigDecimal;
+import java.sql.Connection;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Testes unitários de regras de sobreposição de agenda ({@code RN06, D02}), confirmação com
- * e-mail automático ({@code RN08}), transições de estado ({@code RN07, RN09}) e histórico ({@code RN19}).
+ * e-mail automático e fallback ({@code RN08}), transições de estado ({@code RN07, RN09}) e histórico ({@code RN19}).
  *
  * <p>Rastreabilidade: {@code [Atende RN05, RN06, RN07, RN08, RN09, RN10, RN11, RN19, D01, D02, D05]}
  */
@@ -49,15 +54,12 @@ class ReservaConflitosECicloVidaTest {
                 LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 15));
         confirmada.confirmar();
 
-        // Conflito interno: [12/11, 14/11) sobrepõe [10/11, 15/11)
         assertTrue(confirmada.possuiConflitoPeriodo(
                 LocalDate.of(2026, 11, 12), LocalDate.of(2026, 11, 14)));
 
-        // Fronteira hoteleira D02: saída dia 15 permite nova entrada dia 15 sem conflito!
         assertFalse(confirmada.possuiConflitoPeriodo(
                 LocalDate.of(2026, 11, 15), LocalDate.of(2026, 11, 18)));
 
-        // Ponto 1 da Revisão: conflito de reserva day-use no mesmo dia (15/11 a 15/11)
         Reserva dayUse = new Reserva(criarHospedePadrao(), criarQuartoPadrao(),
                 LocalDate.of(2026, 11, 20), LocalDate.of(2026, 11, 20));
         dayUse.confirmar();
@@ -80,8 +82,8 @@ class ReservaConflitosECicloVidaTest {
             boolean simularConflito = true;
 
             @Override
-            public Optional<Reserva> buscarPorId(Integer id) {
-                return Optional.of(reservaStub);
+            public Reserva buscarPorId(Integer id) {
+                return reservaStub;
             }
 
             @Override
@@ -99,17 +101,21 @@ class ReservaConflitosECicloVidaTest {
             }
         };
 
+        EmailService emailSpy = new EmailService() {
+            @Override
+            public void enviarConfirmacaoReserva(String destinatario, String assunto, String corpoTexto) {
+                emailsEnviados.incrementAndGet();
+            }
+        };
+
         ReservaService service = new ReservaService(
-                null, reservaDaoFake, new HospedeDAO(null), new QuartoDAO(null),
-                (dest, assunto, corpo) -> emailsEnviados.incrementAndGet()
+                null, reservaDaoFake, new HospedeDAO(null), new QuartoDAO(null), emailSpy
         );
 
-        // 1ª tentativa com conflito: bloqueia e NÃO envia e-mail (RN06)
         assertThrows(RegraNegocioException.class, () -> service.confirmarReserva(recepcionista, 10));
         assertEquals(0, emailsEnviados.get());
         assertEquals(StatusReserva.PENDENTE, reservaStub.getStatus());
 
-        // 2ª tentativa sem conflito: confirma e dispara 1 e-mail (RN07, RN08)
         service.confirmarReserva(recepcionista, 10);
         assertEquals(StatusReserva.CONFIRMADA, reservaStub.getStatus());
         assertEquals(1, emailsEnviados.get());
@@ -124,7 +130,6 @@ class ReservaConflitosECicloVidaTest {
         Reserva rAtiva = new Reserva(1, hospede, quarto,
                 LocalDate.of(2026, 11, 10), LocalDate.of(2026, 11, 12), null, null, StatusReserva.PENDENTE);
 
-        // Não permite check-in nem lançamento de consumo em reserva PENDENTE
         assertThrows(RegraNegocioException.class,
                 () -> rAtiva.realizarCheckIn(LocalDateTime.of(2026, 11, 10, 14, 0)));
         assertThrows(RegraNegocioException.class,
@@ -134,8 +139,7 @@ class ReservaConflitosECicloVidaTest {
         rAtiva.realizarCheckIn(LocalDateTime.of(2026, 11, 10, 14, 0));
         assertEquals(StatusReserva.EM_ANDAMENTO, rAtiva.getStatus());
 
-        // Reserva em andamento NÃO pode ser cancelada nem entra ainda no histórico de finalizadas (RN19)
-        assertThrows(RegraNegocioException.class, rAtiva::cancelar);
+        assertThrows(RegraNegocioException.class, () -> rAtiva.cancelar());
         assertTrue(hospede.consultarHistorico().isEmpty());
 
         Reserva rFinalizada = new Reserva(2, hospede, criarQuartoPadrao(),
@@ -145,5 +149,67 @@ class ReservaConflitosECicloVidaTest {
 
         assertEquals(1, hospede.consultarHistorico().size());
         assertEquals(rFinalizada, hospede.consultarHistorico().get(0));
+    }
+
+    @Test
+    @DisplayName("RN06 (Concorrência) / RN08 (SMTP Fallback): Deve bloquear reserva/quarto antes de checar conflito e realizar fallback seguro de e-mail")
+    void deveBloquearQuartoEmOrdemEstritaERealizarFallbackSmtpSeguro() {
+        Usuario recepcionista = new Usuario("Fernanda", "recepcao", "Recepcao@123", PerfilUsuario.RECEPCIONISTA);
+        Reserva reservaStub = new Reserva(25, criarHospedePadrao(), criarQuartoPadrao(),
+                LocalDate.of(2026, 12, 10), LocalDate.of(2026, 12, 12), null, null, StatusReserva.PENDENTE);
+
+        List<String> ordemOperacoes = new ArrayList<>();
+
+        ReservaDAO reservaDaoFake = new ReservaDAO(null) {
+            @Override
+            public Integer bloquearObterIdQuarto(Connection conn, int idReserva) {
+                ordemOperacoes.add("LOCK_RESERVA_" + idReserva);
+                return reservaStub.getQuarto().getIdQuarto();
+            }
+
+            @Override
+            public Reserva buscarPorId(Connection conn, Integer id) {
+                ordemOperacoes.add("SELECT_RESERVA_" + id);
+                return reservaStub;
+            }
+
+            @Override
+            public boolean existeConflitoPeriodo(Connection conn, int idQuarto, LocalDate ini, LocalDate fim, Integer ign) {
+                ordemOperacoes.add("CHECK_CONFLITO_FOR_UPDATE_QUARTO_" + idQuarto);
+                return false;
+            }
+
+            @Override
+            public void atualizar(Reserva reserva) {
+                ordemOperacoes.add("UPDATE_RESERVA_" + reserva.getStatus().name());
+            }
+        };
+
+        QuartoDAO quartoDaoFake = new QuartoDAO(null) {
+            @Override
+            public void bloquearPorId(Connection conn, int idQuarto) {
+                ordemOperacoes.add("LOCK_QUARTO_" + idQuarto);
+            }
+        };
+
+        SmtpEmailService smtpComFallback = new SmtpEmailService(
+                "127.0.0.1", "1", "teste@hotelflow.com.br", "senha123",
+                "nao-responda@hotelflow.com.br", true, false
+        );
+
+        ReservaService service = new ReservaService(
+                null, reservaDaoFake, new HospedeDAO(null), quartoDaoFake, smtpComFallback
+        );
+
+        service.confirmarReserva(recepcionista, 25);
+
+        assertEquals(Arrays.asList(
+                "LOCK_RESERVA_25",
+                "LOCK_QUARTO_1",
+                "SELECT_RESERVA_25",
+                "CHECK_CONFLITO_FOR_UPDATE_QUARTO_1",
+                "UPDATE_RESERVA_CONFIRMADA"
+        ), ordemOperacoes);
+        assertTrue(smtpComFallback.getUltimoStatusEnvio().startsWith("FALLBACK CONSOLE"));
     }
 }

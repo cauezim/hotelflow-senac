@@ -42,22 +42,11 @@ public class Quarto {
         this.statusLimpeza = statusLimpeza;
     }
 
-    /**
-     * Verifica se o quarto atende simultaneamente aos dois eixos exigidos para check-in ({@code D01}):
-     * {@code DISPONIVEL} e {@code LIMPO}.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN09, RN12, D01]}
-     */
     public boolean estaAptoParaCheckIn() {
         return this.statusOcupacao == StatusOcupacao.DISPONIVEL
                 && this.statusLimpeza == StatusLimpeza.LIMPO;
     }
 
-    /**
-     * Ocupa o quarto na efetivação do Check-in, bloqueando caso esteja ocupado ou pendente de limpeza.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN09, D01]}
-     */
     public void ocupar() {
         if (!estaAptoParaCheckIn()) {
             throw new RegraNegocioException(
@@ -67,20 +56,10 @@ public class Quarto {
         this.statusOcupacao = StatusOcupacao.OCUPADO;
     }
 
-    /**
-     * Libera a ocupação do quarto imediatamente após quitação total no Check-out.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN17]}
-     */
     public void liberar() {
         this.statusOcupacao = StatusOcupacao.DISPONIVEL;
     }
 
-    /**
-     * Atualiza o estado de governança/higienização do quarto.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN12, RN17]}
-     */
     public void atualizarLimpeza(StatusLimpeza novoStatus) {
         if (novoStatus == null) {
             throw new RegraNegocioException("Informe um status de limpeza válido.");
@@ -101,7 +80,7 @@ public class Quarto {
     }
 
     public final void setNumero(String numero) {
-        if (numero == null || numero.isBlank()) {
+        if (numero == null || numero.trim().isEmpty()) {
             throw new RegraNegocioException("O número do quarto é obrigatório.");
         }
         this.numero = numero.trim();
@@ -150,9 +129,14 @@ public class Quarto {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Quarto that)) return false;
-        return Objects.equals(numero, that.numero);
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Quarto)) {
+            return false;
+        }
+        Quarto outro = (Quarto) o;
+        return Objects.equals(this.numero, outro.numero);
     }
 
     @Override

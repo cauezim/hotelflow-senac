@@ -13,6 +13,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.math.BigDecimal;
 import java.util.List;
 import javax.swing.JButton;
@@ -40,7 +42,6 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
 
     private final JComboBox<ItemReserva> cmbReservaAtiva = new JComboBox<>();
 
-    // Frigobar [RN10]
     private final JTextField txtProduto = new JTextField(16);
     private final JSpinner spnQuantidade = new JSpinner(new SpinnerNumberModel(1, 1, 100, 1));
     private final JTextField txtValorUnitario = new JTextField("10,00", 8);
@@ -53,7 +54,6 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
         }
     };
 
-    // Serviços de Quarto [RN11]
     private final JTextField txtDescricaoServico = new JTextField(18);
     private final JTextField txtValorServico = new JTextField("50,00", 8);
     private final JLabel lblTotalServicos = new JLabel("Subtotal Serviços: R$ 0.00");
@@ -78,22 +78,30 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
         setBackground(UiTheme.FUNDO_CLARO);
         setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Seleção da Hospedagem Ativa
         JPanel topo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         topo.setBackground(UiTheme.BRANCO);
         topo.setBorder(UiTheme.criarBordaTitulada("Selecionar Reserva Em Andamento (Hóspede Hospedado)"));
         topo.add(new JLabel("Hospedagem Ativa:"));
         cmbReservaAtiva.setFont(UiTheme.FONTE_PADRAO);
-        cmbReservaAtiva.addActionListener(e -> recarregarTabelasReservaSelecionada());
+        cmbReservaAtiva.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                recarregarTabelasReservaSelecionada();
+            }
+        });
         topo.add(cmbReservaAtiva);
 
         JButton btnAtualizar = UiTheme.criarBotaoSecundario("Atualizar Reservas Ativas");
-        btnAtualizar.addActionListener(e -> atualizarDados());
+        btnAtualizar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                atualizarDados();
+            }
+        });
         topo.add(btnAtualizar);
 
         add(topo, BorderLayout.NORTH);
 
-        // Centro dividido em 2 colunas: Frigobar (RN10) | Serviços de Quarto (RN11)
         JPanel gradeDupla = new JPanel(new GridLayout(1, 2, 12, 12));
         gradeDupla.setOpaque(false);
         gradeDupla.add(construirColunaFrigobar());
@@ -124,7 +132,12 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
         gbc.gridx = 3; gbc.weightx = 0.6; form.add(txtValorUnitario, gbc);
 
         JButton btnLancar = UiTheme.criarBotaoPrimario("Lançar Item no Frigobar");
-        btnLancar.addActionListener(e -> lancarItemFrigobar());
+        btnLancar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                lancarItemFrigobar();
+            }
+        });
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4;
         form.add(btnLancar, gbc);
 
@@ -158,7 +171,12 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
         gbc.gridx = 1; gbc.weightx = 1.0; form.add(txtValorServico, gbc);
 
         JButton btnRegistrar = UiTheme.criarBotaoSucesso("Registrar Serviço de Quarto");
-        btnRegistrar.addActionListener(e -> registrarServico());
+        btnRegistrar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                registrarServico();
+            }
+        });
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 2;
         form.add(btnRegistrar, gbc);
 
@@ -183,11 +201,11 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
             int qtd = (Integer) spnQuantidade.getValue();
             BigDecimal valorUnit = UiTheme.lerValorMonetario(txtValorUnitario.getText(), "Valor Unitário");
             hospedagemService.lancarConsumoFrigobar(
-                    usuarioLogado, sel.idReserva(), txtProduto.getText(), qtd, valorUnit);
+                    usuarioLogado, sel.getIdReserva(), txtProduto.getText(), qtd, valorUnit);
             txtProduto.setText("");
             spnQuantidade.setValue(1);
             recarregarTabelasReservaSelecionada();
-            UiTheme.exibirSucesso(this, "Consumo de frigobar lançado na Reserva #" + sel.idReserva() + "!");
+            UiTheme.exibirSucesso(this, "Consumo de frigobar lançado na Reserva #" + sel.getIdReserva() + "!");
         } catch (Exception ex) {
             UiTheme.exibirErro(this, ex);
         }
@@ -202,10 +220,10 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
         try {
             BigDecimal valor = UiTheme.lerValorMonetario(txtValorServico.getText(), "Valor do Serviço");
             hospedagemService.registrarServicoQuarto(
-                    usuarioLogado, sel.idReserva(), txtDescricaoServico.getText(), valor);
+                    usuarioLogado, sel.getIdReserva(), txtDescricaoServico.getText(), valor);
             txtDescricaoServico.setText("");
             recarregarTabelasReservaSelecionada();
-            UiTheme.exibirSucesso(this, "Serviço de quarto registrado na Reserva #" + sel.idReserva() + "!");
+            UiTheme.exibirSucesso(this, "Serviço de quarto registrado na Reserva #" + sel.getIdReserva() + "!");
         } catch (Exception ex) {
             UiTheme.exibirErro(this, ex);
         }
@@ -214,7 +232,11 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
     @Override
     public void atualizarDados() {
         try {
-            Integer idAnterior = cmbReservaAtiva.getSelectedItem() instanceof ItemReserva ir ? ir.idReserva() : null;
+            Integer idAnterior = null;
+            Object selecionadoAtual = cmbReservaAtiva.getSelectedItem();
+            if (selecionadoAtual instanceof ItemReserva) {
+                idAnterior = ((ItemReserva) selecionadoAtual).getIdReserva();
+            }
             cmbReservaAtiva.removeAllItems();
 
             List<Reserva> ativas = reservaService.listarReservasPorStatus(usuarioLogado, StatusReserva.EM_ANDAMENTO);
@@ -247,7 +269,7 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
             return;
         }
         try {
-            Reserva r = reservaService.buscarReservaObrigatoria(sel.idReserva());
+            Reserva r = reservaService.buscarReservaObrigatoria(sel.getIdReserva());
             for (ConsumoFrigobar c : r.getConsumos()) {
                 modeloFrigobar.addRow(new Object[]{
                         c.getDataHoraRegistro().format(UiTheme.DATA_HORA_BR),
@@ -271,7 +293,19 @@ public class PainelEstadiaConsumos extends JPanel implements Atualizavel {
         }
     }
 
-    private record ItemReserva(Integer idReserva, String rotulo) {
+    private static class ItemReserva {
+        private final Integer idReserva;
+        private final String rotulo;
+
+        public ItemReserva(Integer idReserva, String rotulo) {
+            this.idReserva = idReserva;
+            this.rotulo = rotulo;
+        }
+
+        public Integer getIdReserva() {
+            return idReserva;
+        }
+
         @Override
         public String toString() {
             return rotulo;

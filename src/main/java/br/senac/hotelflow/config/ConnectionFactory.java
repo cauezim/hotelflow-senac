@@ -9,15 +9,14 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 /**
- * Gerenciador Singleton de configuração e fábrica de conexões JDBC para MySQL 8.
+ * Fábrica centralizada de conexões JDBC para o MySQL 8 (padrão Singleton simples).
  *
- * <p>Justificativa Arquitetural (Etapa E9):
+ * <p>Justificativa Didática (Etapa E9):
  * <ul>
- *   <li><b>Singleton na configuração:</b> evita releitura repetitiva de arquivos {@code .properties}
- *       a cada operação de banco, centralizando URL, credenciais e parâmetros de timezone/charset;</li>
- *   <li><b>Conexão por unidade de trabalho (Unit of Work):</b> fornece conexões limpas para operações
- *       simples e suporte explícito a transações ACID ({@code setAutoCommit(false)}) para fluxos
- *       multi-tabela críticos como Check-in ({@code RN09}) e Check-out ({@code RN16, RN17}).</li>
+ *   <li>Carrega uma única vez as configurações do arquivo {@code db.properties};</li>
+ *   <li>Fornece conexões simples ({@code autoCommit = true}) para consultas/cadastros e
+ *       conexões transacionais ({@code autoCommit = false}) com bloqueio de linha para evitar
+ *       conflitos simultâneos em reservas ({@code RN06}) e pagamentos ({@code RN15..RN17}).</li>
  * </ul>
  *
  * <p>Rastreabilidade: {@code [Atende RN01..RN20]}
@@ -27,7 +26,7 @@ public final class ConnectionFactory {
     private static final String ARQUIVO_LOCAL = "/db.properties";
     private static final String ARQUIVO_EXEMPLO = "/db.properties.example";
 
-    private static volatile ConnectionFactory instancia;
+    private static ConnectionFactory instancia;
 
     private final String url;
     private final String usuario;
@@ -42,26 +41,17 @@ public final class ConnectionFactory {
     }
 
     /**
-     * Obtém a instância única (Double-Checked Locking thread-safe) do configurador JDBC.
-     *
-     * @return instância única de {@link ConnectionFactory}
+     * Retorna a instância única do gerenciador de conexões.
      */
-    public static ConnectionFactory getInstance() {
+    public static synchronized ConnectionFactory getInstance() {
         if (instancia == null) {
-            synchronized (ConnectionFactory.class) {
-                if (instancia == null) {
-                    instancia = new ConnectionFactory();
-                }
-            }
+            instancia = new ConnectionFactory();
         }
         return instancia;
     }
 
     /**
-     * Abre uma nova conexão ativa com o banco MySQL 8 (com {@code autoCommit = true} por padrão).
-     *
-     * @return conexão JDBC aberta
-     * @throws PersistenciaException caso o servidor MySQL esteja indisponível ou credenciais inválidas
+     * Abre uma nova conexão ativa com o banco MySQL 8 ({@code autoCommit = true}).
      */
     public Connection getConnection() {
         try {
@@ -74,14 +64,13 @@ public final class ConnectionFactory {
     }
 
     /**
-     * Abre uma conexão com controle transacional manual ({@code autoCommit = false}) para operações
-     * atômicas que envolvem múltiplas tabelas (ex.: Check-in RN09 e Encerramento de Check-out RN17).
-     *
-     * @return conexão JDBC em modo transacional
+     * Abre uma conexão transacional ({@code autoCommit = false}) com isolamento {@code READ_COMMITTED}
+     * para uso conjunto com {@code SELECT ... FOR UPDATE}.
      */
     public Connection getTransactionalConnection() {
         Connection conn = getConnection();
         try {
+            conn.setTransactionIsolation(Connection.TRANSACTION_READ_COMMITTED);
             conn.setAutoCommit(false);
             return conn;
         } catch (SQLException e) {
@@ -90,11 +79,6 @@ public final class ConnectionFactory {
         }
     }
 
-    /**
-     * Efetiva (commit) todas as operações da transação atual.
-     *
-     * @param conn conexão transacional aberta
-     */
     public static void commit(Connection conn) {
         if (conn != null) {
             try {
@@ -105,37 +89,22 @@ public final class ConnectionFactory {
         }
     }
 
-    /**
-     * Desfaz (rollback) todas as alterações da transação em caso de falha de regra ou persistência.
-     *
-     * @param conn conexão transacional aberta
-     */
     public static void rollback(Connection conn) {
         if (conn != null) {
             try {
                 conn.rollback();
             } catch (SQLException ignored) {
-                // Preserva a exceção original que motivou o rollback
+                // Preserva a exceção principal que motivou o rollback
             }
         }
     }
 
-    /**
-     * Fecha recursos JDBC ({@code ResultSet}, {@code Statement}, {@code Connection}) sem lançar exceções secundárias.
-     *
-     * @param recursos recursos {@link AutoCloseable} a encerrar
-     */
-    public static void fecharSilenciosamente(AutoCloseable... recursos) {
-        if (recursos == null) {
-            return;
-        }
-        for (AutoCloseable recurso : recursos) {
-            if (recurso != null) {
-                try {
-                    recurso.close();
-                } catch (Exception ignored) {
-                    // Fechamento seguro
-                }
+    public static void fecharSilenciosamente(Connection conn) {
+        if (conn != null) {
+            try {
+                conn.close();
+            } catch (SQLException ignored) {
+                // Fechamento seguro da conexão
             }
         }
     }
@@ -160,18 +129,18 @@ public final class ConnectionFactory {
                 props.load(exemploStream);
             }
         } catch (IOException ignored) {
-            // Usa valores default seguros
+            // Usa valores padrão locais
         }
         return props;
     }
 
     private String resolverConfiguracao(String envKey, Properties props, String propKey, String padrao) {
         String valorEnv = System.getenv(envKey);
-        if (valorEnv != null && !valorEnv.isBlank()) {
+        if (valorEnv != null && !valorEnv.trim().isEmpty()) {
             return valorEnv.trim();
         }
         String valorProp = props.getProperty(propKey);
-        if (valorProp != null && !valorProp.isBlank()) {
+        if (valorProp != null && !valorProp.trim().isEmpty()) {
             return valorProp.trim();
         }
         return padrao;

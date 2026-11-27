@@ -26,8 +26,8 @@ Todas as chamadas sobre objetos de negócio obedecem **100% às assinaturas do D
    - Na primeira abertura, `Fatura` interage explicitamente com `Reserva.calcularDiarias(hoje)`, `Quarto -> CategoriaQuarto.getTarifaDiaria()`, `Reserva.calcularTotalConsumos()` e `Reserva.calcularTotalServicos()`, congelando `tarifaDiariaAplicada` e `valorBruto`.
 3. **Dupla Barreira de Segurança no Desconto (`PE01` / `UC16` — `[Atende RN01, RN14, D03, D04, D06]`):**
    - O fragmento `opt` verifica primeiro a autorização via `usuarioGerente.possuiPermissao("APLICAR_DESCONTO")`, depois garante `fatura.calcularTotalPago() == 0` (bloqueando descontos pós-parcelamento) e valida `cupom.validar()`, devolvendo o demonstrativo atualizado para a `TelaCheckOut`.
-4. **Fracionamento de Pagamentos em Laço (`UC14` — `[Atende RN15, RN16]`):**
-   - O fragmento `loop` permite múltiplos lançamentos (`PIX`, `Cartão de Crédito`, `Dinheiro`) na mesma sessão ou a interrupção parcial (`FA03b`), instanciando objetos `Pagamento` via mensagem `<<create>>`.
+4. **Fracionamento de Pagamentos em Laço com Bloqueio Pessimista (`UC14` — `[Atende RN15, RN16]`):**
+   - Antes de consultar o saldo devedor em cada operação, `CheckOutService` adquire bloqueio exclusivo de linha no MySQL (`SELECT ... FOR UPDATE` na ordem estrita `reserva -> quarto -> fatura`), impedindo que dois operadores leiam o mesmo saldo simultaneamente. O fragmento `loop` permite múltiplos lançamentos (`PIX`, `Cartão de Crédito`, `Dinheiro`) instanciando objetos `Pagamento` via `<<create>>`.
 5. **Encerramento em Transação Única, Responsabilidade Única e Recibo Pós-Commit (`PE02` / `UC15` — `[Atende RN07, RN16, RN17, RN18, RN19]`):**
    - A parcela quitadora e o encerramento compartilham a **mesma transação JDBC (`commitPagamentoFinalEEncerramento`)**, impedindo que uma falha deixe a fatura `PAGA` com o quarto ainda `OCUPADO`.
    - A responsabilidade de chamar `quarto.liberar()` e `quarto.atualizarLimpeza(SUJO)` fica encapsulada exclusivamente dentro de `reserva.finalizar(agora)`, sem duplicidade no serviço.
@@ -190,7 +190,11 @@ else reserva EM_ANDAMENTO [RN07]
     ' =========================================================
     loop [enquanto saldoDevedor > 0 && Recepcionista registrar parcela]
         Rec -> Tela : informarPagamento(valor, formaPagamento)
-        Tela -> Ctrl : registrarPagamento(idFatura, valor, formaPagamento)
+        Tela -> Ctrl : registrarPagamento(idReserva, valor, formaPagamento)
+        Ctrl -> DAO : bloquearAgregadoCheckOut(idReserva) [SELECT ... FOR UPDATE]
+        activate DAO
+        DAO --> Ctrl : lockExclusivoObtido (reserva -> quarto -> fatura)
+        deactivate DAO
         Ctrl -> Fat : calcularSaldoDevedor()
         Fat --> Ctrl : saldoDevedor
 

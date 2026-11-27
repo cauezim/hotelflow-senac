@@ -20,14 +20,9 @@ import java.sql.Connection;
 import java.time.LocalDateTime;
 
 /**
- * Serviço orquestrador do processo crítico de Check-out e Faturamento ({@code UC13..UC16}):
- * <ul>
- *   <li>Gera ou retoma a {@link Fatura} única da reserva, atualizando diárias em caso de prorrogação ({@code D05, D06});</li>
- *   <li>Aplica cupom de desconto autorizado exclusivamente pelo {@code GERENTE} ({@code RN14, D03, D04, D06});</li>
- *   <li>Registra pagamentos fracionados ou integrais ({@code RN15, RN16}) e, na parcela quitadora, executa
- *       em <b>transação atômica única JDBC</b> o pagamento + quitação + finalização da reserva + liberação do quarto
- *       ({@code RN07, RN17, RN19}), emitindo o recibo textual somente após o {@code commit} ({@code RN18}).</li>
- * </ul>
+ * Serviço orquestrador do processo crítico de Check-out e Faturamento ({@code UC13..UC16}),
+ * utilizando transação JDBC única e bloqueio pessimista ({@code SELECT ... FOR UPDATE}) para
+ * evitar leituras concorrentes de saldo defasado.
  *
  * <p>Rastreabilidade: {@code [Atende RN01, RN04, RN07, RN10, RN11, RN13..RN19, D02..D06]}
  */
@@ -67,34 +62,62 @@ public class CheckOutService {
     }
 
     /**
-     * Abre o Check-out gerando a fatura consolidada (na 1ª vez) ou retomando a fatura aberta
-     * (sem duplicá-la e ajustando diárias caso o hóspede tenha prorrogado pernoites).
+     * Abre o Check-out em transação com bloqueio pessimista, gerando a fatura consolidada
+     * ou retomando a fatura aberta sem risco de duplicidade.
      *
      * <p>Rastreabilidade: {@code [Atende RN13, RN16, D02, D05, D06]}
      */
     public Fatura iniciarOuRetomarCheckOut(Usuario operador, int idReserva, LocalDateTime momentoReferencia) {
         AutenticacaoService.exigirPermissao(operador, "PROCESSAR_CHECKOUT");
 
-        Reserva reserva = reservaDAO.buscarPorId(idReserva)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ")."));
-
-        if (reserva.getStatus() != StatusReserva.EM_ANDAMENTO) {
-            throw new RegraNegocioException(
-                    "O Check-out exige reserva Em Andamento (status atual: " + reserva.getStatus().getDescricao() + ").");
-        }
-
         LocalDateTime agora = momentoReferencia != null ? momentoReferencia : LocalDateTime.now();
-        Fatura faturaExistente = reserva.getFatura();
-        if (faturaExistente != null) {
-            boolean prorrogada = faturaExistente.atualizarSeProrrogada(agora.toLocalDate());
-            if (prorrogada) {
-                faturaDAO.atualizar(faturaExistente);
+        Connection conn = null;
+        try {
+            if (connectionFactory != null) {
+                conn = connectionFactory.getTransactionalConnection();
             }
-            return faturaExistente;
-        }
 
-        Fatura novaFatura = new Fatura(reserva, agora);
-        return faturaDAO.salvar(novaFatura);
+            bloquearAgregadoCheckOut(conn, idReserva);
+
+            Reserva reserva = reservaDAO.buscarPorId(conn, idReserva);
+            if (reserva == null) {
+                throw new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ").");
+            }
+
+            if (reserva.getStatus() != StatusReserva.EM_ANDAMENTO) {
+                throw new RegraNegocioException(
+                        "O Check-out exige reserva Em Andamento (status atual: " + reserva.getStatus().getDescricao() + ").");
+            }
+
+            Fatura faturaResultado;
+            Fatura faturaExistente = reserva.getFatura();
+            if (faturaExistente != null) {
+                boolean prorrogada = faturaExistente.atualizarSeProrrogada(agora.toLocalDate());
+                if (prorrogada) {
+                    if (conn != null) {
+                        faturaDAO.atualizar(conn, faturaExistente);
+                    } else {
+                        faturaDAO.atualizar(faturaExistente);
+                    }
+                }
+                faturaResultado = faturaExistente;
+            } else {
+                Fatura novaFatura = new Fatura(reserva, agora);
+                if (conn != null) {
+                    faturaResultado = faturaDAO.salvar(conn, novaFatura);
+                } else {
+                    faturaResultado = faturaDAO.salvar(novaFatura);
+                }
+            }
+
+            ConnectionFactory.commit(conn);
+            return faturaResultado;
+        } catch (RuntimeException e) {
+            ConnectionFactory.rollback(conn);
+            throw e;
+        } finally {
+            ConnectionFactory.fecharSilenciosamente(conn);
+        }
     }
 
     /**
@@ -106,26 +129,49 @@ public class CheckOutService {
     public Fatura aplicarCupomDesconto(Usuario operadorGerente, int idReserva, String codigoCupom) {
         AutenticacaoService.exigirPermissao(operadorGerente, "APLICAR_DESCONTO");
 
-        Reserva reserva = reservaDAO.buscarPorId(idReserva)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ")."));
-
-        Fatura fatura = reserva.getFatura();
-        if (fatura == null) {
-            throw new RegraNegocioException("Inicie o Check-out da reserva antes de aplicar um cupom de desconto.");
+        CupomDesconto cupom = cupomDAO.buscarPorCodigo(codigoCupom);
+        if (cupom == null) {
+            throw new EntidadeNaoEncontradaException("Cupom de desconto não encontrado: '" + codigoCupom + "'.");
         }
 
-        CupomDesconto cupom = cupomDAO.buscarPorCodigo(codigoCupom)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Cupom de desconto não encontrado: '" + codigoCupom + "'."));
+        Connection conn = null;
+        try {
+            if (connectionFactory != null) {
+                conn = connectionFactory.getTransactionalConnection();
+            }
 
-        fatura.aplicarDesconto(cupom);
-        faturaDAO.atualizar(fatura);
-        return fatura;
+            bloquearAgregadoCheckOut(conn, idReserva);
+
+            Reserva reserva = reservaDAO.buscarPorId(conn, idReserva);
+            if (reserva == null) {
+                throw new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ").");
+            }
+
+            Fatura fatura = reserva.getFatura();
+            if (fatura == null) {
+                throw new RegraNegocioException("Inicie o Check-out da reserva antes de aplicar um cupom de desconto.");
+            }
+
+            fatura.aplicarDesconto(cupom);
+            if (conn != null) {
+                faturaDAO.atualizar(conn, fatura);
+                ConnectionFactory.commit(conn);
+            } else {
+                faturaDAO.atualizar(fatura);
+            }
+            return fatura;
+        } catch (RuntimeException e) {
+            ConnectionFactory.rollback(conn);
+            throw e;
+        } finally {
+            ConnectionFactory.fecharSilenciosamente(conn);
+        }
     }
 
     /**
-     * Registra uma parcela de pagamento e, caso o saldo devedor atinja zero, executa na MESMA
-     * transação JDBC a finalização da reserva e a liberação do quarto para limpeza ({@code SUJO}),
-     * gerando o recibo textual somente após a confirmação do {@code commit}.
+     * Registra uma parcela de pagamento sob bloqueio exclusivo ({@code SELECT ... FOR UPDATE}) na
+     * reserva, quarto e fatura e, caso o saldo devedor atinja zero, executa na mesma transação
+     * a finalização da reserva e a liberação do quarto ({@code SUJO}).
      *
      * <p>Rastreabilidade: {@code [Atende RN07, RN15, RN16, RN17, RN18, RN19, D05]}
      */
@@ -137,10 +183,16 @@ public class CheckOutService {
         LocalDateTime agora = momentoPagamento != null ? momentoPagamento : LocalDateTime.now();
         Connection conn = null;
         try {
-            conn = connectionFactory.getTransactionalConnection();
+            if (connectionFactory != null) {
+                conn = connectionFactory.getTransactionalConnection();
+            }
 
-            Reserva reserva = reservaDAO.buscarPorId(conn, idReserva)
-                    .orElseThrow(() -> new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ")."));
+            bloquearAgregadoCheckOut(conn, idReserva);
+
+            Reserva reserva = reservaDAO.buscarPorId(conn, idReserva);
+            if (reserva == null) {
+                throw new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ").");
+            }
 
             if (reserva.getStatus() != StatusReserva.EM_ANDAMENTO) {
                 throw new RegraNegocioException("A reserva informada não está Em Andamento.");
@@ -155,15 +207,24 @@ public class CheckOutService {
             Pagamento novoPagamento = new Pagamento(valor, agora, formaPagamento);
             fatura.registrarPagamento(novoPagamento);
 
-            pagamentoDAO.salvar(conn, fatura.getIdFatura(), novoPagamento);
-            faturaDAO.atualizar(conn, fatura);
+            if (conn != null) {
+                pagamentoDAO.salvar(conn, fatura.getIdFatura(), novoPagamento);
+                faturaDAO.atualizar(conn, fatura);
+            } else {
+                pagamentoDAO.salvar(fatura.getIdFatura(), novoPagamento);
+                faturaDAO.atualizar(fatura);
+            }
 
             boolean quitada = fatura.estaQuitada();
             if (quitada) {
-                // Reserva.finalizar() encapsula status = FINALIZADA + quarto.liberar() + quarto.atualizarLimpeza(SUJO)
                 reserva.finalizar(agora);
-                reservaDAO.atualizar(conn, reserva);
-                quartoDAO.atualizar(conn, reserva.getQuarto());
+                if (conn != null) {
+                    reservaDAO.atualizar(conn, reserva);
+                    quartoDAO.atualizar(conn, reserva.getQuarto());
+                } else {
+                    reservaDAO.atualizar(reserva);
+                    quartoDAO.atualizar(reserva.getQuarto());
+                }
             }
 
             ConnectionFactory.commit(conn);
@@ -176,5 +237,13 @@ public class CheckOutService {
         } finally {
             ConnectionFactory.fecharSilenciosamente(conn);
         }
+    }
+
+    private void bloquearAgregadoCheckOut(Connection conn, int idReserva) {
+        Integer idQuarto = reservaDAO.bloquearObterIdQuarto(conn, idReserva);
+        if (idQuarto != null) {
+            quartoDAO.bloquearPorId(conn, idQuarto);
+        }
+        faturaDAO.bloquearPorReserva(conn, idReserva);
     }
 }

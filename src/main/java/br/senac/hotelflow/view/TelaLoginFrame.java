@@ -9,6 +9,8 @@ import java.awt.Dimension;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.sql.Connection;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -18,6 +20,7 @@ import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 
 /**
  * Tela inicial de Autenticação do HotelFlow, exigindo login e senha e direcionando o colaborador
@@ -44,7 +47,6 @@ public class TelaLoginFrame extends JFrame {
         setResizable(false);
         setLayout(new BorderLayout());
 
-        // Cabeçalho Institucional
         JPanel cabecalho = new JPanel(new BorderLayout(4, 4));
         cabecalho.setBackground(UiTheme.AZUL_PRIMARIO);
         cabecalho.setBorder(BorderFactory.createEmptyBorder(20, 24, 18, 24));
@@ -61,7 +63,6 @@ public class TelaLoginFrame extends JFrame {
         cabecalho.add(lblSub, BorderLayout.SOUTH);
         add(cabecalho, BorderLayout.NORTH);
 
-        // Formulário Central
         JPanel centro = new JPanel(new GridBagLayout());
         centro.setBackground(UiTheme.BRANCO);
         centro.setBorder(BorderFactory.createEmptyBorder(24, 36, 18, 36));
@@ -91,7 +92,12 @@ public class TelaLoginFrame extends JFrame {
 
         JButton btnEntrar = UiTheme.criarBotaoPrimario("Autenticar e Acessar Sistema");
         btnEntrar.setPreferredSize(new Dimension(280, 38));
-        btnEntrar.addActionListener(e -> realizarLogin());
+        btnEntrar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                realizarLogin();
+            }
+        });
         gbc.gridy = 4;
         gbc.insets = new Insets(16, 6, 8, 6);
         centro.add(btnEntrar, gbc);
@@ -109,7 +115,6 @@ public class TelaLoginFrame extends JFrame {
 
         add(centro, BorderLayout.CENTER);
 
-        // Barra Inferior de Status JDBC
         JPanel rodape = new JPanel(new BorderLayout());
         rodape.setBackground(UiTheme.FUNDO_CLARO);
         rodape.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
@@ -123,20 +128,28 @@ public class TelaLoginFrame extends JFrame {
     }
 
     private void verificarStatusBancoAssincrono() {
-        new Thread(() -> {
-            try (Connection conn = ConnectionFactory.getInstance().getConnection()) {
-                String catalogo = conn.getCatalog();
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    lblStatusBanco.setText("● MySQL 8 Conectado (" + catalogo + ")");
-                    lblStatusBanco.setForeground(UiTheme.VERDE_BOTAO);
-                });
-            } catch (Exception e) {
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    lblStatusBanco.setText("● Banco indisponível (verifique MySQL / scripts SQL)");
-                    lblStatusBanco.setForeground(UiTheme.VERMELHO_PERIGO);
-                });
+        Thread verificador = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try (Connection conn = ConnectionFactory.getInstance().getConnection()) {
+                    final String catalogo = conn.getCatalog();
+                    atualizarRotuloBanco("● MySQL 8 Conectado (" + catalogo + ")", UiTheme.VERDE_BOTAO);
+                } catch (Exception e) {
+                    atualizarRotuloBanco("● Banco indisponível (verifique MySQL / scripts SQL)", UiTheme.VERMELHO_PERIGO);
+                }
             }
-        }, "check-mysql-login").start();
+        }, "check-mysql-login");
+        verificador.start();
+    }
+
+    private void atualizarRotuloBanco(final String texto, final Color cor) {
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                lblStatusBanco.setText(texto);
+                lblStatusBanco.setForeground(cor);
+            }
+        });
     }
 
     private void realizarLogin() {

@@ -197,10 +197,11 @@ public class Reserva {
      * <p>Rastreabilidade: {@code [Atende RN10, RN13]}
      */
     public BigDecimal calcularTotalConsumos() {
-        return consumos.stream()
-                .map(ConsumoFrigobar::calcularSubtotal)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal total = BigDecimal.ZERO;
+        for (ConsumoFrigobar item : this.consumos) {
+            total = total.add(item.calcularSubtotal());
+        }
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -209,10 +210,11 @@ public class Reserva {
      * <p>Rastreabilidade: {@code [Atende RN11, RN13]}
      */
     public BigDecimal calcularTotalServicos() {
-        return servicos.stream()
-                .map(ServicoQuarto::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal total = BigDecimal.ZERO;
+        for (ServicoQuarto servico : this.servicos) {
+            total = total.add(servico.getValor());
+        }
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -323,14 +325,19 @@ public class Reserva {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Reserva that)) return false;
-        if (idReserva != null && that.idReserva != null) {
-            return Objects.equals(idReserva, that.idReserva);
+        if (this == o) {
+            return true;
         }
-        return Objects.equals(hospede, that.hospede)
-                && Objects.equals(quarto, that.quarto)
-                && Objects.equals(dataCheckInPrevista, that.dataCheckInPrevista);
+        if (!(o instanceof Reserva)) {
+            return false;
+        }
+        Reserva outra = (Reserva) o;
+        if (idReserva != null && outra.idReserva != null) {
+            return Objects.equals(idReserva, outra.idReserva);
+        }
+        return Objects.equals(hospede, outra.hospede)
+                && Objects.equals(quarto, outra.quarto)
+                && Objects.equals(dataCheckInPrevista, outra.dataCheckInPrevista);
     }
 
     @Override

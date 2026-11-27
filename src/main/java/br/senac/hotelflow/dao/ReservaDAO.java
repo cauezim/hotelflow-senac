@@ -20,16 +20,15 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
- * DAO JDBC responsável pelo agregado {@link Reserva}, incluindo verificação SQL de conflito
- * em intervalo semiaberto com suporte a day-use ({@code RN06, D02}), histórico de reservas
- * finalizadas ({@code RN19}) e consulta analítica de ocupação efetiva mensal ({@code RN20, D05}).
+ * DAO JDBC responsável pelo agregado {@link Reserva}, incluindo verificação SQL transacional
+ * de conflito em intervalo semiaberto ({@code RN06, D02}), histórico de reservas finalizadas
+ * ({@code RN19}) e consulta de ocupação efetiva mensal ({@code RN20, D05}).
  *
  * <p>Rastreabilidade: {@code [Atende RN05..RN11, RN13, RN17, RN19, RN20, D01, D02, D05]}
  */
-public class ReservaDAO implements CrudDAO<Reserva, Integer> {
+public class ReservaDAO {
 
     private static final String SELECT_BASE = """
             SELECT r.id_reserva, r.data_checkin_prevista, r.data_checkout_prevista,
@@ -59,7 +58,6 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         this.faturaDAO = new FaturaDAO(connectionFactory);
     }
 
-    @Override
     public Reserva salvar(Reserva reserva) {
         String sql = """
                 INSERT INTO reserva (
@@ -90,7 +88,6 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         }
     }
 
-    @Override
     public void atualizar(Reserva reserva) {
         try (Connection conn = connectionFactory.getConnection()) {
             atualizar(conn, reserva);
@@ -99,10 +96,6 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         }
     }
 
-    /**
-     * Atualiza estado e datas efetivas da reserva participando de uma transação JDBC externa
-     * (Check-in atômico {@code RN09} e Check-out atômico {@code RN17}).
-     */
     public void atualizar(Connection conn, Reserva reserva) {
         String sql = """
                 UPDATE reserva
@@ -123,8 +116,7 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         }
     }
 
-    @Override
-    public Optional<Reserva> buscarPorId(Integer id) {
+    public Reserva buscarPorId(Integer id) {
         try (Connection conn = connectionFactory.getConnection()) {
             return buscarPorId(conn, id);
         } catch (SQLException e) {
@@ -132,22 +124,49 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         }
     }
 
-    public Optional<Reserva> buscarPorId(Connection conn, Integer id) {
+    /**
+     * Adquire bloqueio exclusivo ({@code SELECT ... FOR UPDATE}) sobre o registro da reserva na
+     * transação ativa e retorna o {@code id_quarto} associado para encadeamento seguro de locks
+     * na ordem estrita {@code reserva -> quarto -> fatura}.
+     *
+     * <p>Rastreabilidade: {@code [Atende RN06, RN09, RN13..RN17]}
+     */
+    public Integer bloquearObterIdQuarto(Connection conn, int idReserva) {
+        if (conn == null) {
+            return null;
+        }
+        String sql = "SELECT id_quarto FROM reserva WHERE id_reserva = ? FOR UPDATE";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idReserva);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getInt("id_quarto");
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("Erro ao bloquear reserva ID " + idReserva + ": " + e.getMessage(), e);
+        }
+    }
+
+    public Reserva buscarPorId(Connection conn, Integer id) {
+        if (conn == null) {
+            return buscarPorId(id);
+        }
         String sql = SELECT_BASE + " WHERE r.id_reserva = ?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapearCompleta(conn, rs));
+                    return mapearCompleta(conn, rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao carregar reserva ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    @Override
     public List<Reserva> listarTodos() {
         String sql = SELECT_BASE + " ORDER BY r.data_checkin_prevista DESC, r.id_reserva DESC";
         List<Reserva> lista = new ArrayList<>();
@@ -182,15 +201,26 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         }
     }
 
+    public boolean existeConflitoPeriodo(int idQuarto, LocalDate inicioPrevisto,
+                                         LocalDate fimPrevisto, Integer idReservaIgnorada) {
+        try (Connection conn = connectionFactory.getConnection()) {
+            return existeConflitoPeriodo(conn, idQuarto, inicioPrevisto, fimPrevisto, idReservaIgnorada);
+        } catch (SQLException e) {
+            throw new PersistenciaException("Erro ao verificar conflito de disponibilidade do quarto: " + e.getMessage(), e);
+        }
+    }
+
     /**
-     * Verifica diretamente no MySQL se há reserva ativa ({@code CONFIRMADA} ou {@code EM_ANDAMENTO})
-     * sobreposta ao período proposto para o mesmo quarto, respeitando intervalo semiaberto {@code [ini, fim)}
-     * e reservas de mesmo dia (day-use, {@code D02}).
+     * Versão transacional com leitura bloqueante ({@code FOR UPDATE}) que garante leitura atual
+     * (sem snapshot defasado) ao validar conflitos simultâneos de reserva para o mesmo quarto.
      *
      * <p>Rastreabilidade: {@code [Atende RN06, D02]}
      */
-    public boolean existeConflitoPeriodo(int idQuarto, LocalDate inicioPrevisto,
+    public boolean existeConflitoPeriodo(Connection conn, int idQuarto, LocalDate inicioPrevisto,
                                          LocalDate fimPrevisto, Integer idReservaIgnorada) {
+        if (conn == null) {
+            return existeConflitoPeriodo(idQuarto, inicioPrevisto, fimPrevisto, idReservaIgnorada);
+        }
         LocalDate fimEfetivoProposto = fimPrevisto.equals(inicioPrevisto)
                 ? inicioPrevisto.plusDays(1)
                 : fimPrevisto;
@@ -209,9 +239,9 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
                           ELSE r.data_checkout_prevista
                       END
                   ) > ?
+                FOR UPDATE
                 """;
-        try (Connection conn = connectionFactory.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
 
             ps.setInt(1, idQuarto);
             if (idReservaIgnorada != null) {
@@ -228,15 +258,10 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
                 return rs.next() && rs.getInt("total") > 0;
             }
         } catch (SQLException e) {
-            throw new PersistenciaException("Erro ao verificar conflito de disponibilidade do quarto: " + e.getMessage(), e);
+            throw new PersistenciaException("Erro transacional ao verificar conflito de disponibilidade do quarto: " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Consulta todas as reservas {@code FINALIZADA}s vinculadas a um hóspede em ordem cronológica reversa.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN19]}
-     */
     public List<Reserva> listarFinalizadasPorHospede(int idHospede) {
         String sql = SELECT_BASE
                 + " WHERE r.id_hospede = ? AND r.status = 'FINALIZADA' ORDER BY r.data_hora_checkout DESC";
@@ -256,12 +281,6 @@ public class ReservaDAO implements CrudDAO<Reserva, Integer> {
         }
     }
 
-    /**
-     * Recupera todas as hospedagens efetivas ({@code EM_ANDAMENTO} ou {@code FINALIZADA}) cuja janela
-     * real de ocupação intersecte o intervalo {@code [inicioPeriodo, fimPeriodoExclusivo)}.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN20, D05]}
-     */
     public List<Reserva> listarEstadiasEfetivasNoPeriodo(LocalDate inicioPeriodo, LocalDate fimPeriodoExclusivo) {
         String sql = SELECT_BASE + """
                 WHERE r.status IN ('EM_ANDAMENTO', 'FINALIZADA')

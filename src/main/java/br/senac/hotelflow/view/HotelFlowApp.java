@@ -5,10 +5,7 @@ import java.sql.Connection;
 import javax.swing.SwingUtilities;
 
 /**
- * Ponto de entrada principal da aplicação desktop HotelFlow ({@code v0.9.0-beta}).
- *
- * <p>Inicializa o tema visual Java Swing ({@code Nimbus}) na Event Dispatch Thread (EDT)
- * e apresenta a {@link TelaLoginFrame}.
+ * Ponto de entrada principal da aplicação desktop HotelFlow.
  *
  * <p>Rastreabilidade: {@code [Atende RN01..RN20]}
  */
@@ -17,7 +14,7 @@ public class HotelFlowApp {
     public static void main(String[] args) {
         System.out.println("==========================================================");
         System.out.println("  HotelFlow - Sistema de Gestao Hoteleira (SENAC)         ");
-        System.out.println("  Versao: v1.0.0 (Release Final - Java 17 + Swing + JDBC) ");
+        System.out.println("  Versao: v1.0.0 (Java 17 + Swing + JDBC MySQL 8)         ");
         System.out.println("==========================================================");
 
         if (args != null && args.length > 0 && "--check-db".equalsIgnoreCase(args[0])) {
@@ -25,9 +22,12 @@ public class HotelFlowApp {
         }
 
         UiTheme.configurarLookAndFeel();
-        SwingUtilities.invokeLater(() -> {
-            TelaLoginFrame loginFrame = new TelaLoginFrame();
-            loginFrame.setVisible(true);
+        SwingUtilities.invokeLater(new Runnable() {
+            @Override
+            public void run() {
+                TelaLoginFrame loginFrame = new TelaLoginFrame();
+                loginFrame.setVisible(true);
+            }
         });
     }
 

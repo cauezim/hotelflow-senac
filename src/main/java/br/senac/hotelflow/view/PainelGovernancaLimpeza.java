@@ -6,6 +6,8 @@ import br.senac.hotelflow.model.enums.StatusLimpeza;
 import br.senac.hotelflow.service.HospedagemService;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JButton;
@@ -52,40 +54,62 @@ public class PainelGovernancaLimpeza extends JPanel implements Atualizavel {
         setBackground(UiTheme.FUNDO_CLARO);
         setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Barra Superior de Filtro
         JPanel barraTopo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         barraTopo.setBackground(UiTheme.BRANCO);
         barraTopo.setBorder(UiTheme.criarBordaTitulada("Filtro de Governança Hoteleira [RN12]"));
         barraTopo.add(new JLabel("Exibir:"));
         cmbFiltro.setFont(UiTheme.FONTE_PADRAO);
-        cmbFiltro.addActionListener(e -> atualizarDados());
+        cmbFiltro.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                atualizarDados();
+            }
+        });
         barraTopo.add(cmbFiltro);
 
         JButton btnRecarregar = UiTheme.criarBotaoSecundario("Recarregar Lista");
-        btnRecarregar.addActionListener(e -> atualizarDados());
+        btnRecarregar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                atualizarDados();
+            }
+        });
         barraTopo.add(btnRecarregar);
 
         add(barraTopo, BorderLayout.NORTH);
 
-        // Tabela Central
         UiTheme.padronizarTabela(tabela);
         JScrollPane scroll = new JScrollPane(tabela);
         scroll.setBorder(UiTheme.criarBordaTitulada("Mapa de Higienização dos Quartos (selecione um quarto abaixo)"));
         add(scroll, BorderLayout.CENTER);
 
-        // Botões de Transição de Estado de Limpeza
         JPanel barraAcoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
         barraAcoes.setBackground(UiTheme.BRANCO);
         barraAcoes.setBorder(UiTheme.criarBordaTitulada("Atualizar Status de Limpeza do Quarto Selecionado [RN12]"));
 
         JButton btnSujo = UiTheme.criarBotaoPerigo("Marcar como SUJO");
-        btnSujo.addActionListener(e -> alterarLimpezaSelecionado(StatusLimpeza.SUJO));
+        btnSujo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                alterarLimpezaSelecionado(StatusLimpeza.SUJO);
+            }
+        });
 
         JButton btnEmLimpeza = UiTheme.criarBotaoPrimario("Iniciar Higienização (EM LIMPEZA)");
-        btnEmLimpeza.addActionListener(e -> alterarLimpezaSelecionado(StatusLimpeza.EM_LIMPEZA));
+        btnEmLimpeza.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                alterarLimpezaSelecionado(StatusLimpeza.EM_LIMPEZA);
+            }
+        });
 
         JButton btnLimpo = UiTheme.criarBotaoSucesso("Concluir Higienização (LIMPO)");
-        btnLimpo.addActionListener(e -> alterarLimpezaSelecionado(StatusLimpeza.LIMPO));
+        btnLimpo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                alterarLimpezaSelecionado(StatusLimpeza.LIMPO);
+            }
+        });
 
         barraAcoes.add(btnSujo);
         barraAcoes.add(btnEmLimpeza);
@@ -121,12 +145,22 @@ public class PainelGovernancaLimpeza extends JPanel implements Atualizavel {
             modeloTabela.setRowCount(0);
 
             for (Quarto q : todos) {
-                boolean incluir = switch (filtro) {
-                    case 1 -> q.getStatusLimpeza() == StatusLimpeza.SUJO;
-                    case 2 -> q.getStatusLimpeza() == StatusLimpeza.EM_LIMPEZA;
-                    case 3 -> q.getStatusLimpeza() == StatusLimpeza.LIMPO;
-                    default -> true;
-                };
+                boolean incluir;
+                switch (filtro) {
+                    case 1:
+                        incluir = (q.getStatusLimpeza() == StatusLimpeza.SUJO);
+                        break;
+                    case 2:
+                        incluir = (q.getStatusLimpeza() == StatusLimpeza.EM_LIMPEZA);
+                        break;
+                    case 3:
+                        incluir = (q.getStatusLimpeza() == StatusLimpeza.LIMPO);
+                        break;
+                    default:
+                        incluir = true;
+                        break;
+                }
+
                 if (incluir) {
                     quartosExibidos.add(q);
                     modeloTabela.addRow(new Object[]{

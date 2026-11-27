@@ -41,18 +41,17 @@ public class Hospede {
      * Retorna exclusivamente as reservas vinculadas ao hóspede cujo status seja {@code FINALIZADA}.
      *
      * <p>Rastreabilidade: {@code [Atende RN19]}
-     *
-     * @return lista imutável de reservas finalizadas
      */
     public List<Reserva> consultarHistorico() {
-        return reservas.stream()
-                .filter(r -> r.getStatus() == StatusReserva.FINALIZADA)
-                .toList();
+        List<Reserva> historicoFinalizadas = new ArrayList<>();
+        for (Reserva r : this.reservas) {
+            if (r.getStatus() == StatusReserva.FINALIZADA) {
+                historicoFinalizadas.add(r);
+            }
+        }
+        return Collections.unmodifiableList(historicoFinalizadas);
     }
 
-    /**
-     * Associa uma reserva à coleção em memória do hóspede evitando duplicidade.
-     */
     public void vincularReserva(Reserva reserva) {
         if (reserva != null && !reservas.contains(reserva)) {
             reservas.add(reserva);
@@ -76,7 +75,7 @@ public class Hospede {
     }
 
     public final void setNomeCompleto(String nomeCompleto) {
-        if (nomeCompleto == null || nomeCompleto.isBlank()) {
+        if (nomeCompleto == null || nomeCompleto.trim().isEmpty()) {
             throw new RegraNegocioException("O nome completo do hóspede é obrigatório.");
         }
         this.nomeCompleto = nomeCompleto.trim();
@@ -88,7 +87,7 @@ public class Hospede {
 
     /**
      * Padroniza CPF ou Passaporte removendo caracteres de formatação (pontos, traços, barras e espaços)
-     * e convertendo letras para maiúsculas, evitando duplicidade de cadastro por máscara.
+     * e convertendo letras para maiúsculas.
      *
      * <p>Rastreabilidade: {@code [Atende RN02]}
      */
@@ -97,7 +96,7 @@ public class Hospede {
             throw new RegraNegocioException("O CPF ou Passaporte do hóspede é obrigatório.");
         }
         String normalizado = documento.replaceAll("[.\\-/\\s]", "").toUpperCase();
-        if (normalizado.isBlank()) {
+        if (normalizado.isEmpty()) {
             throw new RegraNegocioException("O CPF ou Passaporte informado é inválido.");
         }
         return normalizado;
@@ -112,7 +111,7 @@ public class Hospede {
     }
 
     public final void setTelefone(String telefone) {
-        if (telefone == null || telefone.isBlank()) {
+        if (telefone == null || telefone.trim().isEmpty()) {
             throw new RegraNegocioException("O telefone do hóspede é obrigatório.");
         }
         this.telefone = telefone.trim();
@@ -123,7 +122,7 @@ public class Hospede {
     }
 
     public final void setEmail(String email) {
-        if (email == null || email.isBlank() || !email.contains("@")) {
+        if (email == null || email.trim().isEmpty() || !email.contains("@")) {
             throw new RegraNegocioException("Informe um endereço de e-mail válido para o hóspede.");
         }
         this.email = email.trim().toLowerCase();
@@ -134,7 +133,7 @@ public class Hospede {
     }
 
     public final void setEndereco(String endereco) {
-        if (endereco == null || endereco.isBlank()) {
+        if (endereco == null || endereco.trim().isEmpty()) {
             throw new RegraNegocioException("O endereço do hóspede é obrigatório.");
         }
         this.endereco = endereco.trim();
@@ -142,9 +141,14 @@ public class Hospede {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Hospede that)) return false;
-        return Objects.equals(documento, that.documento);
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Hospede)) {
+            return false;
+        }
+        Hospede outro = (Hospede) o;
+        return Objects.equals(this.documento, outro.documento);
     }
 
     @Override

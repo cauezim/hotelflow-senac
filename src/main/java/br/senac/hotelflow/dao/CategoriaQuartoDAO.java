@@ -10,14 +10,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * DAO JDBC responsável pelas categorias e tarifas diárias na tabela {@code categoria_quarto}.
  *
  * <p>Rastreabilidade: {@code [Atende RN03, RN04]}
  */
-public class CategoriaQuartoDAO implements CrudDAO<CategoriaQuarto, Integer> {
+public class CategoriaQuartoDAO {
 
     private final ConnectionFactory connectionFactory;
 
@@ -29,7 +28,6 @@ public class CategoriaQuartoDAO implements CrudDAO<CategoriaQuarto, Integer> {
         this.connectionFactory = connectionFactory;
     }
 
-    @Override
     public CategoriaQuarto salvar(CategoriaQuarto categoria) {
         String sql = "INSERT INTO categoria_quarto (nome, tarifa_diaria) VALUES (?, ?)";
         try (Connection conn = connectionFactory.getConnection();
@@ -50,7 +48,6 @@ public class CategoriaQuartoDAO implements CrudDAO<CategoriaQuarto, Integer> {
         }
     }
 
-    @Override
     public void atualizar(CategoriaQuarto categoria) {
         String sql = "UPDATE categoria_quarto SET nome = ?, tarifa_diaria = ? WHERE id_categoria = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -65,8 +62,7 @@ public class CategoriaQuartoDAO implements CrudDAO<CategoriaQuarto, Integer> {
         }
     }
 
-    @Override
-    public Optional<CategoriaQuarto> buscarPorId(Integer id) {
+    public CategoriaQuarto buscarPorId(Integer id) {
         String sql = "SELECT id_categoria, nome, tarifa_diaria FROM categoria_quarto WHERE id_categoria = ?";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -74,18 +70,18 @@ public class CategoriaQuartoDAO implements CrudDAO<CategoriaQuarto, Integer> {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar categoria ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    public Optional<CategoriaQuarto> buscarPorNome(String nome) {
-        if (nome == null || nome.isBlank()) {
-            return Optional.empty();
+    public CategoriaQuarto buscarPorNome(String nome) {
+        if (nome == null || nome.trim().isEmpty()) {
+            return null;
         }
         String sql = "SELECT id_categoria, nome, tarifa_diaria FROM categoria_quarto WHERE nome = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -94,16 +90,15 @@ public class CategoriaQuartoDAO implements CrudDAO<CategoriaQuarto, Integer> {
             ps.setString(1, nome.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar categoria '" + nome + "': " + e.getMessage(), e);
         }
     }
 
-    @Override
     public List<CategoriaQuarto> listarTodos() {
         String sql = "SELECT id_categoria, nome, tarifa_diaria FROM categoria_quarto ORDER BY tarifa_diaria";
         List<CategoriaQuarto> lista = new ArrayList<>();

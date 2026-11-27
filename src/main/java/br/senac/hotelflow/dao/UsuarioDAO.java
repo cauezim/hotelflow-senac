@@ -11,14 +11,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * DAO JDBC responsável pelo acesso à tabela {@code usuario}.
  *
  * <p>Rastreabilidade: {@code [Atende RN01, D04]}
  */
-public class UsuarioDAO implements CrudDAO<Usuario, Integer> {
+public class UsuarioDAO {
 
     private final ConnectionFactory connectionFactory;
 
@@ -30,7 +29,6 @@ public class UsuarioDAO implements CrudDAO<Usuario, Integer> {
         this.connectionFactory = connectionFactory;
     }
 
-    @Override
     public Usuario salvar(Usuario usuario) {
         String sql = "INSERT INTO usuario (nome, login, senha_hash, perfil) VALUES (?, ?, ?, ?)";
         try (Connection conn = connectionFactory.getConnection();
@@ -53,7 +51,6 @@ public class UsuarioDAO implements CrudDAO<Usuario, Integer> {
         }
     }
 
-    @Override
     public void atualizar(Usuario usuario) {
         String sql = "UPDATE usuario SET nome = ?, login = ?, senha_hash = ?, perfil = ? WHERE id_usuario = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -70,8 +67,7 @@ public class UsuarioDAO implements CrudDAO<Usuario, Integer> {
         }
     }
 
-    @Override
-    public Optional<Usuario> buscarPorId(Integer id) {
+    public Usuario buscarPorId(Integer id) {
         String sql = "SELECT id_usuario, nome, login, senha_hash, perfil FROM usuario WHERE id_usuario = ?";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -79,23 +75,18 @@ public class UsuarioDAO implements CrudDAO<Usuario, Integer> {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar usuário por ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Localiza um colaborador pelo login único para autenticação.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN01]}
-     */
-    public Optional<Usuario> buscarPorLogin(String login) {
-        if (login == null || login.isBlank()) {
-            return Optional.empty();
+    public Usuario buscarPorLogin(String login) {
+        if (login == null || login.trim().isEmpty()) {
+            return null;
         }
         String sql = "SELECT id_usuario, nome, login, senha_hash, perfil FROM usuario WHERE login = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -104,16 +95,15 @@ public class UsuarioDAO implements CrudDAO<Usuario, Integer> {
             ps.setString(1, login.trim().toLowerCase());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar usuário pelo login '" + login + "': " + e.getMessage(), e);
         }
     }
 
-    @Override
     public List<Usuario> listarTodos() {
         String sql = "SELECT id_usuario, nome, login, senha_hash, perfil FROM usuario ORDER BY nome";
         List<Usuario> lista = new ArrayList<>();

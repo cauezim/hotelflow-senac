@@ -40,51 +40,41 @@ public class HospedagemService {
         this.quartoDAO = quartoDAO;
     }
 
-    /**
-     * Lança um item de frigobar na conta de uma reserva {@code EM_ANDAMENTO}.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN10, D06]}
-     */
     public ConsumoFrigobar lancarConsumoFrigobar(Usuario operador, int idReserva,
                                                  String produto, int quantidade, BigDecimal valorUnitario) {
         AutenticacaoService.exigirPermissao(operador, "LANCAR_CONSUMO");
 
-        Reserva reserva = reservaDAO.buscarPorId(idReserva)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ")."));
+        Reserva reserva = reservaDAO.buscarPorId(idReserva);
+        if (reserva == null) {
+            throw new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ").");
+        }
 
         ConsumoFrigobar novoConsumo = new ConsumoFrigobar(produto, quantidade, valorUnitario);
         reserva.adicionarConsumo(novoConsumo);
         return consumoDAO.salvar(idReserva, novoConsumo);
     }
 
-    /**
-     * Solicita e registra um serviço de quarto (lavanderia, refeição extra, etc.) na reserva {@code EM_ANDAMENTO}.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN11, D06]}
-     */
     public ServicoQuarto registrarServicoQuarto(Usuario operador, int idReserva,
                                                 String descricao, BigDecimal valor) {
         AutenticacaoService.exigirPermissao(operador, "REGISTRAR_SERVICO");
 
-        Reserva reserva = reservaDAO.buscarPorId(idReserva)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ")."));
+        Reserva reserva = reservaDAO.buscarPorId(idReserva);
+        if (reserva == null) {
+            throw new EntidadeNaoEncontradaException("Reserva não encontrada (ID " + idReserva + ").");
+        }
 
         ServicoQuarto novoServico = new ServicoQuarto(descricao, valor);
         reserva.adicionarServico(novoServico);
         return servicoDAO.salvar(idReserva, novoServico);
     }
 
-    /**
-     * Permite exclusivamente à Camareira atualizar o status de higienização do quarto
-     * ({@code SUJO}, {@code EM_LIMPEZA} ou {@code LIMPO}).
-     *
-     * <p>Rastreabilidade: {@code [Atende RN01, RN12]}
-     */
     public Quarto atualizarLimpezaQuarto(Usuario operadorCamareira, int idQuarto, StatusLimpeza novoStatus) {
         AutenticacaoService.exigirPermissao(operadorCamareira, "ATUALIZAR_LIMPEZA");
 
-        Quarto quarto = quartoDAO.buscarPorId(idQuarto)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Quarto não encontrado (ID " + idQuarto + ")."));
+        Quarto quarto = quartoDAO.buscarPorId(idQuarto);
+        if (quarto == null) {
+            throw new EntidadeNaoEncontradaException("Quarto não encontrado (ID " + idQuarto + ").");
+        }
 
         quarto.atualizarLimpeza(novoStatus);
         quartoDAO.atualizar(quarto);

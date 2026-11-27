@@ -4,7 +4,6 @@ import br.senac.hotelflow.exception.RegraNegocioException;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.Objects;
-import java.util.Set;
 
 /**
  * Classificação de padrão das acomodações ({@code Standard}, {@code Luxo} ou {@code Suíte})
@@ -13,8 +12,6 @@ import java.util.Set;
  * <p>Rastreabilidade: {@code [Atende RN03, RN04]}
  */
 public class CategoriaQuarto {
-
-    private static final Set<String> NOMES_VALIDOS = Set.of("STANDARD", "LUXO", "SUÍTE", "SUITE");
 
     private Integer idCategoria;
     private String nome;
@@ -34,8 +31,6 @@ public class CategoriaQuarto {
      * Atualiza o valor da tarifa diária vigente para novas faturas desta categoria.
      *
      * <p>Rastreabilidade: {@code [Atende RN04]}
-     *
-     * @param novoValor novo valor positivo em reais
      */
     public final void atualizarTarifa(BigDecimal novoValor) {
         if (novoValor == null || novoValor.compareTo(BigDecimal.ZERO) <= 0) {
@@ -57,33 +52,42 @@ public class CategoriaQuarto {
     }
 
     public final void setNome(String nome) {
-        if (nome == null || nome.isBlank()) {
+        if (nome == null || nome.trim().isEmpty()) {
             throw new RegraNegocioException("O nome da categoria de quarto é obrigatório.");
         }
         String limpo = nome.trim();
-        if (!NOMES_VALIDOS.contains(limpo.toUpperCase())) {
-            throw new RegraNegocioException("Categoria inválida ('" + limpo + "'). Valores permitidos: Standard, Luxo ou Suíte.");
+        String maiusculo = limpo.toUpperCase();
+        switch (maiusculo) {
+            case "STANDARD":
+                this.nome = "Standard";
+                break;
+            case "LUXO":
+                this.nome = "Luxo";
+                break;
+            case "SUÍTE":
+            case "SUITE":
+                this.nome = "Suíte";
+                break;
+            default:
+                throw new RegraNegocioException(
+                        "Categoria inválida ('" + limpo + "'). Valores permitidos: Standard, Luxo ou Suíte.");
         }
-        this.nome = normalizarNomeCanonica(limpo);
     }
 
     public BigDecimal getTarifaDiaria() {
         return tarifaDiaria;
     }
 
-    private String normalizarNomeCanonica(String valor) {
-        return switch (valor.toUpperCase()) {
-            case "STANDARD" -> "Standard";
-            case "LUXO" -> "Luxo";
-            default -> "Suíte";
-        };
-    }
-
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CategoriaQuarto that)) return false;
-        return Objects.equals(nome, that.nome);
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CategoriaQuarto)) {
+            return false;
+        }
+        CategoriaQuarto outra = (CategoriaQuarto) o;
+        return Objects.equals(this.nome, outra.nome);
     }
 
     @Override

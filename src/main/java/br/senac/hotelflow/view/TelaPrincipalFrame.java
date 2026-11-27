@@ -12,12 +12,16 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.event.ChangeEvent;
+import javax.swing.event.ChangeListener;
 
 /**
  * Janela Principal da aplicação desktop HotelFlow, montando dinamicamente os módulos visíveis
@@ -43,7 +47,6 @@ public class TelaPrincipalFrame extends JFrame {
         setPreferredSize(new Dimension(1180, 730));
         setLayout(new BorderLayout());
 
-        // Barra Superior de Identificação e Sessão
         JPanel barraSuperior = new JPanel(new BorderLayout());
         barraSuperior.setBackground(UiTheme.AZUL_PRIMARIO);
         barraSuperior.setBorder(BorderFactory.createEmptyBorder(10, 18, 10, 18));
@@ -62,13 +65,17 @@ public class TelaPrincipalFrame extends JFrame {
         painelSessao.add(lblOperador);
 
         JButton btnLogout = UiTheme.criarBotaoSecundario("Trocar Perfil / Sair");
-        btnLogout.addActionListener(e -> realizarLogout());
+        btnLogout.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                realizarLogout();
+            }
+        });
         painelSessao.add(btnLogout);
 
         barraSuperior.add(painelSessao, BorderLayout.EAST);
         add(barraSuperior, BorderLayout.NORTH);
 
-        // Instancia serviços de negócio
         AutenticacaoService autenticacaoService = new AutenticacaoService();
         CadastroService cadastroService = new CadastroService();
         ReservaService reservaService = new ReservaService();
@@ -78,7 +85,6 @@ public class TelaPrincipalFrame extends JFrame {
 
         abas.setFont(UiTheme.FONTE_BOTAO);
 
-        // Montagem dinâmica segundo a matriz de permissões D04 / RN01
         if (usuarioLogado.possuiPermissao("MANTER_HOSPEDES")) {
             abas.addTab("Hóspedes & Histórico [RN02, RN19]",
                     new PainelHospedes(usuarioLogado, cadastroService, reservaService));
@@ -104,8 +110,12 @@ public class TelaPrincipalFrame extends JFrame {
                     new PainelGerenciaCadastrosRelatorio(usuarioLogado, cadastroService, relatorioService));
         }
 
-        // Sincroniza dados automaticamente ao alternar entre abas
-        abas.addChangeListener(e -> atualizarAbaAtiva());
+        abas.addChangeListener(new ChangeListener() {
+            @Override
+            public void stateChanged(ChangeEvent e) {
+                atualizarAbaAtiva();
+            }
+        });
         atualizarAbaAtiva();
 
         add(abas, BorderLayout.CENTER);
@@ -115,7 +125,8 @@ public class TelaPrincipalFrame extends JFrame {
 
     private void atualizarAbaAtiva() {
         Component comp = abas.getSelectedComponent();
-        if (comp instanceof Atualizavel atualizavel) {
+        if (comp instanceof Atualizavel) {
+            Atualizavel atualizavel = (Atualizavel) comp;
             atualizavel.atualizarDados();
         }
     }

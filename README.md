@@ -20,10 +20,10 @@ hotelflow/
 │   │   ├── exception/      # Exceções customizadas de negócio, autorização e persistência
 │   │   ├── model/          # Domínio Rico: 10 entidades + 6 Enums tipados (model.enums)
 │   │   ├── dao/            # Camada de persistência JDBC (10 DAOs c/ PreparedStatement)
-│   │   ├── service/        # Orquestração, permissões, e-mail (RN08), recibo (RN18) e ocupação (RN20)
+│   │   ├── service/        # Orquestração, permissões, SMTP c/ fallback (RN08), recibo e ocupação
 │   │   └── view/           # Interface gráfica desktop em Java Swing adaptativa por perfil
-│   ├── main/resources/     # Template db.properties.example de configuração JDBC
-│   └── test/java/          # Suíte automatizada JUnit 5 cobrindo RN01 a RN20
+│   ├── main/resources/     # Template db.properties.example (MySQL 8 + SMTP opcional)
+│   └── test/java/          # Suíte automatizada JUnit 5 (15 testes cobrindo RN01 a RN20)
 ├── GEMINI.md               # Diretrizes metodológicas e regras de negócio (RN01 a RN20)
 ├── pom.xml                 # Configuração Apache Maven (nativa no Apache NetBeans)
 └── README.md               # Guia de instalação, execução, roadmap e equipe
@@ -57,7 +57,7 @@ hotelflow/
 
 ### 2. Configurar e Rodar no Apache NetBeans (Java 17+)
 1. No NetBeans, acesse **File $\rightarrow$ Open Project** e selecione a pasta raiz do projeto.
-2. Caso a senha do seu usuário `root` local no MySQL seja diferente de `root`, crie o arquivo `src/main/resources/db.properties` (baseado no [`db.properties.example`](src/main/resources/db.properties.example) — já ignorado no Git) com sua senha local.
+2. Caso a senha do seu usuário `root` local no MySQL seja diferente de `root` (ou caso deseje ativar o **envio real de e-mails via SMTP** na `RN08` com Gmail/Mailtrap), edite `src/main/resources/db.properties` seguindo o modelo comentado em [`db.properties.example`](src/main/resources/db.properties.example). Sem credenciais SMTP ou sem internet, o sistema realiza *fallback* automático exibindo o e-mail no console e na tela.
 3. Clique com o botão direito no projeto $\rightarrow$ **Clean and Build**.
 4. Pressione **`F6` (Run Project)** para abrir a interface gráfica **HotelFlow**.
 
@@ -77,8 +77,9 @@ No NetBeans, clique com o botão direito sobre o projeto $\rightarrow$ **Test** 
 ## Tecnologias Adotadas
 - **Linguagem:** Java 17 (`Eclipse Adoptium / OpenJDK 17`)
 - **Interface Gráfica:** Java Swing (`Nimbus LookAndFeel`)
-- **Persistência e Banco:** MySQL 8.0+ (`InnoDB`) + JDBC (`mysql-connector-j 8.4.0`)
-- **Build & Testes:** Apache Maven + JUnit 5 (`junit-jupiter 5.10.3`)
+- **Persistência e Banco:** MySQL 8.0+ (`InnoDB`) + JDBC (`mysql-connector-j 8.4.0`) com transações ACID e `SELECT ... FOR UPDATE`
+- **Notificações (`RN08`):** Jakarta Mail (`angus-mail 2.0.3`) com *fallback* local automático
+- **Build & Testes:** Apache Maven + JUnit 5 (`junit-jupiter 5.10.3` — 15 testes automatizados)
 - **Modelagem:** UML 2.5 em PlantUML (`.puml`) e PDFs vetoriais
 
 ---

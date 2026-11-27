@@ -7,9 +7,9 @@ title Arquitetura em Camadas Estritas (Java 17 + JDBC + MySQL 8) – HotelFlow [
 
 package "br.senac.hotelflow" {
 
-    package "view (Apresentação)" #EFF6FF {
+    package "view (Apresentação Desktop Swing)" #EFF6FF {
         [HotelFlowApp]
-        [Telas / Menus por Perfil\n(Recepcionista | Gerente | Camareira)] as UI
+        [Telas / Painéis por Perfil\n(Recepcionista | Gerente | Camareira)] as UI
     }
 
     package "service (Orquestração e Casos de Uso)" #F0FDF4 {
@@ -23,11 +23,12 @@ package "br.senac.hotelflow" {
 
         package "service.notificacao" {
             interface "EmailService" as IEmail
+            [SmtpEmailService]
             [ConsoleEmailService]
         }
     }
 
-    package "model (Domínio Rico - POJOs/Entidades)" #FFFBEB {
+    package "model (Domínio Rico - Classes POO)" #FFFBEB {
         [Usuario / Hospede / Quarto / CategoriaQuarto]
         [Reserva / ConsumoFrigobar / ServicoQuarto]
         [Fatura / CupomDesconto / Pagamento]
@@ -36,11 +37,10 @@ package "br.senac.hotelflow" {
         }
     }
 
-    package "dao (Persistência Relacional)" #FAF5FF {
-        interface "CrudDAO<T, ID>" as ICrud
-        [UsuarioDAO / HospedeDAO / QuartoDAO / CategoriaDAO]
-        [ReservaDAO / ConsumoDAO / ServicoDAO]
-        [FaturaDAO / PagamentoDAO / CupomDAO]
+    package "dao (Persistência Relacional JDBC)" #FAF5FF {
+        [UsuarioDAO / HospedeDAO / QuartoDAO / CategoriaQuartoDAO]
+        [ReservaDAO / ConsumoFrigobarDAO / ServicoQuartoDAO]
+        [FaturaDAO / PagamentoDAO / CupomDescontoDAO]
     }
 
     package "config (Infraestrutura JDBC)" #F8FAFC {
@@ -59,25 +59,25 @@ UI --> [AutenticacaoService]
 UI --> [ReservaService]
 UI --> [CheckOutService]
 
+[SmtpEmailService] .up.|> IEmail
 [ConsoleEmailService] .up.|> IEmail
+[SmtpEmailService] --> [ConsoleEmailService] : fallback offline >
 [ReservaService] --> IEmail : dispara RN08 >
 
 [ReservaService] --> [Reserva / ConsumoFrigobar / ServicoQuarto]
 [CheckOutService] --> [Fatura / CupomDesconto / Pagamento]
 [CheckOutService] --> [GeradorReciboService] : formata RN18 >
 
-[ReservaService] --> [ReservaDAO / ConsumoDAO / ServicoDAO]
-[CheckOutService] --> [FaturaDAO / PagamentoDAO / CupomDAO]
+[ReservaService] --> [ReservaDAO / ConsumoFrigobarDAO / ServicoQuartoDAO]
+[CheckOutService] --> [FaturaDAO / PagamentoDAO / CupomDescontoDAO]
 
-[ReservaDAO / ConsumoDAO / ServicoDAO] .up.|> ICrud
-[FaturaDAO / PagamentoDAO / CupomDAO] .up.|> ICrud
+[ReservaDAO / ConsumoFrigobarDAO / ServicoQuartoDAO] --> [Reserva / ConsumoFrigobar / ServicoQuarto] : hidrata / persiste >
+[FaturaDAO / PagamentoDAO / CupomDescontoDAO] --> [Fatura / CupomDesconto / Pagamento]
 
-[ReservaDAO / ConsumoDAO / ServicoDAO] --> [Reserva / ConsumoFrigobar / ServicoQuarto] : hidrata / persiste >
-[FaturaDAO / PagamentoDAO / CupomDAO] --> [Fatura / CupomDesconto / Pagamento]
-
-[ReservaDAO / ConsumoDAO / ServicoDAO] --> ConnFactory
-[FaturaDAO / PagamentoDAO / CupomDAO] --> ConnFactory
-[CheckOutService] ..> ConnFactory : transação ACID (RN17) >
+[ReservaDAO / ConsumoFrigobarDAO / ServicoQuartoDAO] --> ConnFactory
+[FaturaDAO / PagamentoDAO / CupomDescontoDAO] --> ConnFactory
+[ReservaService] ..> ConnFactory : transação + lock FOR UPDATE (RN06, RN09) >
+[CheckOutService] ..> ConnFactory : transação + lock FOR UPDATE (RN15..RN17) >
 
 ConnFactory --> MySQL : DriverManager / Connector-J 8.4
 

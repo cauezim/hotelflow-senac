@@ -7,13 +7,15 @@ import br.senac.hotelflow.model.Usuario;
 import br.senac.hotelflow.model.enums.StatusReserva;
 import br.senac.hotelflow.service.CadastroService;
 import br.senac.hotelflow.service.ReservaService;
-import br.senac.hotelflow.service.notificacao.ConsoleEmailService;
 import br.senac.hotelflow.service.notificacao.EmailService;
+import br.senac.hotelflow.service.notificacao.SmtpEmailService;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -41,8 +43,8 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
     private final ReservaService reservaService;
     private String ultimoEmailDisparado;
 
-    private final JComboBox<ItemCombo<Hospede>> cmbHospede = new JComboBox<>();
-    private final JComboBox<ItemCombo<Quarto>> cmbQuarto = new JComboBox<>();
+    private final JComboBox<ItemHospede> cmbHospede = new JComboBox<>();
+    private final JComboBox<ItemQuarto> cmbQuarto = new JComboBox<>();
     private final JTextField txtCheckInPrev = new JTextField(LocalDate.now().format(UiTheme.DATA_BR), 10);
     private final JTextField txtCheckOutPrev = new JTextField(LocalDate.now().plusDays(2).format(UiTheme.DATA_BR), 10);
 
@@ -65,12 +67,14 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
         this.cadastroService = cadastroService;
 
         EmailService emailVisual = new EmailService() {
-            private final ConsoleEmailService console = new ConsoleEmailService();
+            private final SmtpEmailService smtpService = new SmtpEmailService();
 
             @Override
             public void enviarConfirmacaoReserva(String destinatario, String assunto, String corpoTexto) {
-                console.enviarConfirmacaoReserva(destinatario, assunto, corpoTexto);
-                ultimoEmailDisparado = "Destinatário: " + destinatario + "\nAssunto     : " + assunto
+                smtpService.enviarConfirmacaoReserva(destinatario, assunto, corpoTexto);
+                ultimoEmailDisparado = "Modo de Envio: " + smtpService.getUltimoStatusEnvio()
+                        + "\nDestinatário : " + destinatario
+                        + "\nAssunto      : " + assunto
                         + "\n--------------------------------------------------------------------\n" + corpoTexto;
             }
         };
@@ -84,7 +88,6 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
         setBackground(UiTheme.FUNDO_CLARO);
         setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Painel Superior: Nova Reserva
         JPanel form = new JPanel(new GridBagLayout());
         form.setBackground(UiTheme.BRANCO);
         form.setBorder(UiTheme.criarBordaTitulada("Nova Reserva de Hospedagem [RN05]"));
@@ -109,7 +112,12 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
         JPanel painelCriar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 2));
         painelCriar.setOpaque(false);
         JButton btnCriar = UiTheme.criarBotaoSucesso("Criar Reserva (Pendente) [RN05]");
-        btnCriar.addActionListener(e -> criarNovaReserva());
+        btnCriar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                criarNovaReserva();
+            }
+        });
         painelCriar.add(btnCriar);
 
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4;
@@ -117,18 +125,27 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
         add(form, BorderLayout.NORTH);
 
-        // Centro: Filtro + Tabela de Reservas
         JPanel centro = new JPanel(new BorderLayout(6, 6));
         centro.setOpaque(false);
 
         JPanel barraFiltro = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 2));
         barraFiltro.setOpaque(false);
         barraFiltro.add(new JLabel("Filtrar por Status [RN07]:"));
-        cmbFiltroStatus.addActionListener(e -> carregarTabelaReservas());
+        cmbFiltroStatus.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                carregarTabelaReservas();
+            }
+        });
         barraFiltro.add(cmbFiltroStatus);
 
         JButton btnAtualizar = UiTheme.criarBotaoSecundario("Atualizar Lista");
-        btnAtualizar.addActionListener(e -> atualizarDados());
+        btnAtualizar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                atualizarDados();
+            }
+        });
         barraFiltro.add(btnAtualizar);
 
         centro.add(barraFiltro, BorderLayout.NORTH);
@@ -140,19 +157,33 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
         add(centro, BorderLayout.CENTER);
 
-        // Barra Inferior: Ações de Ciclo de Vida
         JPanel barraAcoes = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 8));
         barraAcoes.setBackground(UiTheme.BRANCO);
         barraAcoes.setBorder(UiTheme.criarBordaTitulada("Operações sobre a Reserva Selecionada [RN06, RN07, RN08, RN09]"));
 
         JButton btnConfirmar = UiTheme.criarBotaoPrimario("1. Confirmar Reserva + E-mail [RN06, RN08]");
-        btnConfirmar.addActionListener(e -> confirmarReservaSelecionada());
+        btnConfirmar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                confirmarReservaSelecionada();
+            }
+        });
 
         JButton btnCheckIn = UiTheme.criarBotaoSucesso("2. Efetivar Check-in [RN09, D01]");
-        btnCheckIn.addActionListener(e -> realizarCheckInSelecionada());
+        btnCheckIn.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                realizarCheckInSelecionada();
+            }
+        });
 
         JButton btnCancelar = UiTheme.criarBotaoPerigo("Cancelar Reserva [RN07]");
-        btnCancelar.addActionListener(e -> cancelarReservaSelecionada());
+        btnCancelar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cancelarReservaSelecionada();
+            }
+        });
 
         barraAcoes.add(btnConfirmar);
         barraAcoes.add(btnCheckIn);
@@ -163,8 +194,8 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
     private void criarNovaReserva() {
         try {
-            ItemCombo<Hospede> itemHospede = (ItemCombo<Hospede>) cmbHospede.getSelectedItem();
-            ItemCombo<Quarto> itemQuarto = (ItemCombo<Quarto>) cmbQuarto.getSelectedItem();
+            ItemHospede itemHospede = (ItemHospede) cmbHospede.getSelectedItem();
+            ItemQuarto itemQuarto = (ItemQuarto) cmbQuarto.getSelectedItem();
             if (itemHospede == null || itemQuarto == null) {
                 throw new IllegalArgumentException("Cadastre e selecione um Hóspede e um Quarto antes de criar a reserva.");
             }
@@ -173,8 +204,8 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
             Reserva criada = reservaService.criarReserva(
                     usuarioLogado,
-                    itemHospede.valor().getIdHospede(),
-                    itemQuarto.valor().getIdQuarto(),
+                    itemHospede.getHospede().getIdHospede(),
+                    itemQuarto.getQuarto().getIdQuarto(),
                     ini,
                     fim
             );
@@ -188,14 +219,16 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
     private void confirmarReservaSelecionada() {
         Reserva sel = obterSelecionada();
-        if (sel == null) return;
+        if (sel == null) {
+            return;
+        }
         try {
             ultimoEmailDisparado = null;
             Reserva confirmada = reservaService.confirmarReserva(usuarioLogado, sel.getIdReserva());
             atualizarDados();
             if (ultimoEmailDisparado != null) {
                 DialogoTextoModal.exibir(this,
-                        "Reserva #" + confirmada.getIdReserva() + " Confirmada – E-mail Automático Enviado [RN08]",
+                        "Reserva #" + confirmada.getIdReserva() + " Confirmada – E-mail Automático [RN08]",
                         ultimoEmailDisparado);
             } else {
                 UiTheme.exibirSucesso(this, "Reserva #" + confirmada.getIdReserva() + " confirmada com sucesso!");
@@ -207,7 +240,9 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
     private void realizarCheckInSelecionada() {
         Reserva sel = obterSelecionada();
-        if (sel == null) return;
+        if (sel == null) {
+            return;
+        }
         try {
             Reserva iniciada = reservaService.realizarCheckIn(usuarioLogado, sel.getIdReserva(), LocalDateTime.now());
             atualizarDados();
@@ -220,7 +255,9 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
 
     private void cancelarReservaSelecionada() {
         Reserva sel = obterSelecionada();
-        if (sel == null) return;
+        if (sel == null) {
+            return;
+        }
         try {
             Reserva cancelada = reservaService.cancelarReserva(usuarioLogado, sel.getIdReserva());
             atualizarDados();
@@ -244,7 +281,7 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
         try {
             cmbHospede.removeAllItems();
             for (Hospede h : cadastroService.listarHospedes(usuarioLogado)) {
-                cmbHospede.addItem(new ItemCombo<>(h, h.getNomeCompleto() + " (" + h.getDocumento() + ")"));
+                cmbHospede.addItem(new ItemHospede(h, h.getNomeCompleto() + " (" + h.getDocumento() + ")"));
             }
 
             cmbQuarto.removeAllItems();
@@ -252,7 +289,7 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
                 String label = String.format("Quarto %s - %s (R$ %s) [%s / %s]",
                         q.getNumero(), q.getCategoria().getNome(), q.getCategoria().getTarifaDiaria(),
                         q.getStatusOcupacao().getDescricao(), q.getStatusLimpeza().getDescricao());
-                cmbQuarto.addItem(new ItemCombo<>(q, label));
+                cmbQuarto.addItem(new ItemQuarto(q, label));
             }
             carregarTabelaReservas();
         } catch (Exception ex) {
@@ -288,7 +325,38 @@ public class PainelReservasCheckIn extends JPanel implements Atualizavel {
         }
     }
 
-    private record ItemCombo<T>(T valor, String rotulo) {
+    private static class ItemHospede {
+        private final Hospede hospede;
+        private final String rotulo;
+
+        public ItemHospede(Hospede hospede, String rotulo) {
+            this.hospede = hospede;
+            this.rotulo = rotulo;
+        }
+
+        public Hospede getHospede() {
+            return hospede;
+        }
+
+        @Override
+        public String toString() {
+            return rotulo;
+        }
+    }
+
+    private static class ItemQuarto {
+        private final Quarto quarto;
+        private final String rotulo;
+
+        public ItemQuarto(Quarto quarto, String rotulo) {
+            this.quarto = quarto;
+            this.rotulo = rotulo;
+        }
+
+        public Quarto getQuarto() {
+            return quarto;
+        }
+
         @Override
         public String toString() {
             return rotulo;

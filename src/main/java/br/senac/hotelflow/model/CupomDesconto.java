@@ -25,7 +25,7 @@ public class CupomDesconto {
 
     public CupomDesconto(Integer idCupom, String codigo, BigDecimal percentual, boolean ativo) {
         this.idCupom = idCupom;
-        if (codigo == null || codigo.isBlank()) {
+        if (codigo == null || codigo.trim().isEmpty()) {
             throw new RegraNegocioException("O código do cupom de desconto é obrigatório.");
         }
         if (percentual == null
@@ -46,9 +46,6 @@ public class CupomDesconto {
         this.ativo = false;
     }
 
-    /**
-     * Verifica se o cupom encontra-se ativo e dentro da faixa percentual válida.
-     */
     public boolean validar() {
         return ativo
                 && percentual.compareTo(BigDecimal.ZERO) > 0
@@ -94,9 +91,14 @@ public class CupomDesconto {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof CupomDesconto that)) return false;
-        return Objects.equals(codigo, that.codigo);
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof CupomDesconto)) {
+            return false;
+        }
+        CupomDesconto outro = (CupomDesconto) o;
+        return Objects.equals(this.codigo, outro.codigo);
     }
 
     @Override

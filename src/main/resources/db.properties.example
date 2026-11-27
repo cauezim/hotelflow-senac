@@ -1,8 +1,22 @@
 # =============================================================================
-# HotelFlow – Modelo de Configuração JDBC (MySQL 8)
+# HotelFlow – Modelo de Configuração JDBC (MySQL 8) e E-mail SMTP (RN08)
 # Copie este arquivo para src/main/resources/db.properties (ignorado no Git)
 # caso sua senha local do MySQL Workbench seja diferente do padrão abaixo.
 # =============================================================================
 db.url=jdbc:mysql://localhost:3306/hotelflow?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=America/Sao_Paulo&characterEncoding=UTF-8
 db.user=root
 db.password=root
+
+# =============================================================================
+# Configuração Opcional de E-mail Real via SMTP [Atende RN08]
+# - Se preenchido (ex.: Gmail com Senha de App ou Mailtrap), envia e-mail real.
+# - Se deixado em branco ou sem rede no laboratório, o sistema realiza fallback
+#   automático para o ConsoleEmailService sem interromper a reserva.
+# =============================================================================
+mail.smtp.host=
+mail.smtp.port=587
+mail.smtp.user=
+mail.smtp.password=
+mail.smtp.from=nao-responda@hotelflow.com.br
+mail.smtp.auth=true
+mail.smtp.starttls=true

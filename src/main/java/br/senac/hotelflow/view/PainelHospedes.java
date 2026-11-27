@@ -10,6 +10,8 @@ import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JButton;
@@ -18,6 +20,8 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -61,7 +65,6 @@ public class PainelHospedes extends JPanel implements Atualizavel {
         setBackground(UiTheme.FUNDO_CLARO);
         setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Formulário Superior
         JPanel form = new JPanel(new GridBagLayout());
         form.setBackground(UiTheme.BRANCO);
         form.setBorder(UiTheme.criarBordaTitulada("Cadastro e Atualização de Hóspede [RN02]"));
@@ -90,13 +93,28 @@ public class PainelHospedes extends JPanel implements Atualizavel {
         botoesForm.setOpaque(false);
 
         JButton btnLimpar = UiTheme.criarBotaoSecundario("Novo / Limpar Campos");
-        btnLimpar.addActionListener(e -> limparFormulario());
+        btnLimpar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                limparFormulario();
+            }
+        });
 
         JButton btnSalvar = UiTheme.criarBotaoSucesso("Salvar Hóspede");
-        btnSalvar.addActionListener(e -> salvarOuAtualizarHospede());
+        btnSalvar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                salvarOuAtualizarHospede();
+            }
+        });
 
         JButton btnHistorico = UiTheme.criarBotaoPrimario("Consultar Histórico Finalizado [RN19]");
-        btnHistorico.addActionListener(e -> exibirHistoricoHospedeSelecionado());
+        btnHistorico.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                exibirHistoricoHospedeSelecionado();
+            }
+        });
 
         botoesForm.add(btnLimpar);
         botoesForm.add(btnSalvar);
@@ -107,11 +125,13 @@ public class PainelHospedes extends JPanel implements Atualizavel {
 
         add(form, BorderLayout.NORTH);
 
-        // Tabela Central
         UiTheme.padronizarTabela(tabela);
-        tabela.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting() && tabela.getSelectedRow() >= 0) {
-                preencherFormularioDaLinha(tabela.getSelectedRow());
+        tabela.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                if (!e.getValueIsAdjusting() && tabela.getSelectedRow() >= 0) {
+                    preencherFormularioDaLinha(tabela.getSelectedRow());
+                }
             }
         });
 

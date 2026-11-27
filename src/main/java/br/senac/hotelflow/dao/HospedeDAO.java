@@ -10,14 +10,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * DAO JDBC responsável pelo cadastro e consulta de clientes na tabela {@code hospede}.
  *
  * <p>Rastreabilidade: {@code [Atende RN02, RN19]}
  */
-public class HospedeDAO implements CrudDAO<Hospede, Integer> {
+public class HospedeDAO {
 
     private final ConnectionFactory connectionFactory;
 
@@ -29,7 +28,6 @@ public class HospedeDAO implements CrudDAO<Hospede, Integer> {
         this.connectionFactory = connectionFactory;
     }
 
-    @Override
     public Hospede salvar(Hospede hospede) {
         String sql = "INSERT INTO hospede (nome_completo, documento, telefone, email, endereco) VALUES (?, ?, ?, ?, ?)";
         try (Connection conn = connectionFactory.getConnection();
@@ -53,7 +51,6 @@ public class HospedeDAO implements CrudDAO<Hospede, Integer> {
         }
     }
 
-    @Override
     public void atualizar(Hospede hospede) {
         String sql = "UPDATE hospede SET nome_completo = ?, documento = ?, telefone = ?, email = ?, endereco = ? WHERE id_hospede = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -71,8 +68,7 @@ public class HospedeDAO implements CrudDAO<Hospede, Integer> {
         }
     }
 
-    @Override
-    public Optional<Hospede> buscarPorId(Integer id) {
+    public Hospede buscarPorId(Integer id) {
         String sql = "SELECT id_hospede, nome_completo, documento, telefone, email, endereco FROM hospede WHERE id_hospede = ?";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -80,23 +76,18 @@ public class HospedeDAO implements CrudDAO<Hospede, Integer> {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar hóspede ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    /**
-     * Localiza um hóspede pelo CPF ou Passaporte padronizado (ignorando pontos/traços na entrada).
-     *
-     * <p>Rastreabilidade: {@code [Atende RN02]}
-     */
-    public Optional<Hospede> buscarPorDocumento(String documento) {
-        if (documento == null || documento.isBlank()) {
-            return Optional.empty();
+    public Hospede buscarPorDocumento(String documento) {
+        if (documento == null || documento.trim().isEmpty()) {
+            return null;
         }
         String docNormalizado = Hospede.normalizarDocumento(documento);
         String sql = "SELECT id_hospede, nome_completo, documento, telefone, email, endereco "
@@ -107,9 +98,9 @@ public class HospedeDAO implements CrudDAO<Hospede, Integer> {
             ps.setString(1, docNormalizado);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar hóspede pelo documento '" + documento + "': " + e.getMessage(), e);
@@ -135,7 +126,6 @@ public class HospedeDAO implements CrudDAO<Hospede, Integer> {
         }
     }
 
-    @Override
     public List<Hospede> listarTodos() {
         String sql = "SELECT id_hospede, nome_completo, documento, telefone, email, endereco FROM hospede ORDER BY nome_completo";
         List<Hospede> lista = new ArrayList<>();

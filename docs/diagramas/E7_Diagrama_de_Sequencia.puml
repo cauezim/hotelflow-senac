@@ -127,7 +127,11 @@ else reserva EM_ANDAMENTO [RN07]
     ' =========================================================
     loop [enquanto saldoDevedor > 0 && Recepcionista registrar parcela]
         Rec -> Tela : informarPagamento(valor, formaPagamento)
-        Tela -> Ctrl : registrarPagamento(idFatura, valor, formaPagamento)
+        Tela -> Ctrl : registrarPagamento(idReserva, valor, formaPagamento)
+        Ctrl -> DAO : bloquearAgregadoCheckOut(idReserva) [SELECT ... FOR UPDATE]
+        activate DAO
+        DAO --> Ctrl : lockExclusivoObtido (reserva -> quarto -> fatura)
+        deactivate DAO
         Ctrl -> Fat : calcularSaldoDevedor()
         Fat --> Ctrl : saldoDevedor
 

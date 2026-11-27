@@ -168,20 +168,20 @@ public class RelatorioOcupacaoService {
         sb.append("       HOTELFLOW - RELATÓRIO GERENCIAL DE OCUPAÇÃO MENSAL           \n");
         sb.append("====================================================================\n");
         sb.append(String.format("Competência Analisada        : %s (%d dias)%n",
-                rel.competencia().format(MES_ANO_BR), rel.diasNoMesConsiderados()));
-        sb.append(String.format("Total de Quartos Cadastrados : %d%n", rel.totalQuartosCadastrados()));
-        sb.append(String.format("Capacidade Instalada no Mês  : %d quartos-dia%n", rel.capacidadeTotalQuartosDia()));
-        sb.append(String.format("Quartos-Dia Ocupados         : %d quartos-dia%n", rel.totalQuartosDiaOcupados()));
-        sb.append(String.format("TAXA DE OCUPAÇÃO DO PERÍODO  : %s%%%n", rel.taxaOcupacaoPercentual()));
+                rel.getCompetencia().format(MES_ANO_BR), rel.getDiasNoMesConsiderados()));
+        sb.append(String.format("Total de Quartos Cadastrados : %d%n", rel.getTotalQuartosCadastrados()));
+        sb.append(String.format("Capacidade Instalada no Mês  : %d quartos-dia%n", rel.getCapacidadeTotalQuartosDia()));
+        sb.append(String.format("Quartos-Dia Ocupados         : %d quartos-dia%n", rel.getTotalQuartosDiaOcupados()));
+        sb.append(String.format("TAXA DE OCUPAÇÃO DO PERÍODO  : %s%%%n", rel.getTaxaOcupacaoPercentual()));
         sb.append("--------------------------------------------------------------------\n");
         sb.append("Quarto  | Categoria    | Diárias Ocupadas | Taxa Individual\n");
         sb.append("--------------------------------------------------------------------\n");
-        for (OcupacaoPorQuarto item : rel.detalhamentoQuartos()) {
+        for (OcupacaoPorQuarto item : rel.getDetalhamentoQuartos()) {
             sb.append(String.format("%-7s | %-12s | %16d | %13s%%%n",
-                    item.numeroQuarto(),
-                    item.categoria(),
-                    item.diariasOcupadas(),
-                    item.percentualQuarto()));
+                    item.getNumeroQuarto(),
+                    item.getCategoria(),
+                    item.getDiariasOcupadas(),
+                    item.getPercentualQuarto()));
         }
         sb.append("====================================================================");
         return sb.toString();

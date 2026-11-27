@@ -10,14 +10,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * DAO JDBC responsável pelo gerenciamento de cupons promocionais na tabela {@code cupom_desconto}.
  *
  * <p>Rastreabilidade: {@code [Atende RN14, D03, D06]}
  */
-public class CupomDescontoDAO implements CrudDAO<CupomDesconto, Integer> {
+public class CupomDescontoDAO {
 
     private final ConnectionFactory connectionFactory;
 
@@ -29,7 +28,6 @@ public class CupomDescontoDAO implements CrudDAO<CupomDesconto, Integer> {
         this.connectionFactory = connectionFactory;
     }
 
-    @Override
     public CupomDesconto salvar(CupomDesconto cupom) {
         String sql = "INSERT INTO cupom_desconto (codigo, percentual, ativo) VALUES (?, ?, ?)";
         try (Connection conn = connectionFactory.getConnection();
@@ -51,7 +49,6 @@ public class CupomDescontoDAO implements CrudDAO<CupomDesconto, Integer> {
         }
     }
 
-    @Override
     public void atualizar(CupomDesconto cupom) {
         String sql = "UPDATE cupom_desconto SET codigo = ?, percentual = ?, ativo = ? WHERE id_cupom = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -67,8 +64,7 @@ public class CupomDescontoDAO implements CrudDAO<CupomDesconto, Integer> {
         }
     }
 
-    @Override
-    public Optional<CupomDesconto> buscarPorId(Integer id) {
+    public CupomDesconto buscarPorId(Integer id) {
         String sql = "SELECT id_cupom, codigo, percentual, ativo FROM cupom_desconto WHERE id_cupom = ?";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -76,18 +72,18 @@ public class CupomDescontoDAO implements CrudDAO<CupomDesconto, Integer> {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar cupom ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    public Optional<CupomDesconto> buscarPorCodigo(String codigo) {
-        if (codigo == null || codigo.isBlank()) {
-            return Optional.empty();
+    public CupomDesconto buscarPorCodigo(String codigo) {
+        if (codigo == null || codigo.trim().isEmpty()) {
+            return null;
         }
         String sql = "SELECT id_cupom, codigo, percentual, ativo FROM cupom_desconto WHERE codigo = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -96,16 +92,15 @@ public class CupomDescontoDAO implements CrudDAO<CupomDesconto, Integer> {
             ps.setString(1, codigo.trim().toUpperCase());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar cupom pelo código '" + codigo + "': " + e.getMessage(), e);
         }
     }
 
-    @Override
     public List<CupomDesconto> listarTodos() {
         String sql = "SELECT id_cupom, codigo, percentual, ativo FROM cupom_desconto ORDER BY codigo";
         List<CupomDesconto> lista = new ArrayList<>();

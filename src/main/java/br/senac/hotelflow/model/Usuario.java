@@ -5,7 +5,6 @@ import br.senac.hotelflow.model.enums.PerfilUsuario;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.Objects;
 
 /**
@@ -22,9 +21,6 @@ public class Usuario {
     private String senhaHash;
     private PerfilUsuario perfil;
 
-    /**
-     * Construtor de criação de novo usuário a partir de senha em texto plano (gera hash automaticamente).
-     */
     public Usuario(String nome, String login, String senhaTextoPlano, PerfilUsuario perfil) {
         setNome(nome);
         setLogin(login);
@@ -32,9 +28,6 @@ public class Usuario {
         setPerfil(perfil);
     }
 
-    /**
-     * Construtor completo para hidratação a partir do banco de dados ({@code UsuarioDAO}).
-     */
     public Usuario(Integer idUsuario, String nome, String login, String senhaHash, PerfilUsuario perfil) {
         this.idUsuario = idUsuario;
         setNome(nome);
@@ -47,44 +40,39 @@ public class Usuario {
      * Verifica se a senha em texto plano corresponde ao {@code senhaHash} armazenado.
      *
      * <p>Rastreabilidade: {@code [Atende RN01]}
-     *
-     * @param senha senha informada no login
-     * @return {@code true} se o hash coincidir
      */
     public boolean autenticar(String senha) {
-        if (senha == null || senha.isBlank()) {
+        if (senha == null || senha.trim().isEmpty()) {
             return false;
         }
         String hashCalculado = gerarHashSha256(senha);
-        return MessageDigest.isEqual(
-                hashCalculado.getBytes(StandardCharsets.UTF_8),
-                this.senhaHash.toLowerCase().getBytes(StandardCharsets.UTF_8)
-        );
+        return hashCalculado.equalsIgnoreCase(this.senhaHash);
     }
 
     /**
      * Verifica se o perfil do usuário detém autorização para executar a operação informada.
      *
      * <p>Rastreabilidade: {@code [Atende RN01, RN12, RN14, RN20, D04]}
-     *
-     * @param operacao código da operação de sistema
-     * @return {@code true} se autorizado
      */
     public boolean possuiPermissao(String operacao) {
         return this.perfil != null && this.perfil.possuiPermissao(operacao);
     }
 
     /**
-     * Utilitário determinístico SHA-256 hexadecimal minúsculo compatível com o script de seed SQL.
+     * Gera o resumo criptográfico SHA-256 em texto hexadecimal minúsculo.
      */
     public static String gerarHashSha256(String senhaTextoPlano) {
-        if (senhaTextoPlano == null || senhaTextoPlano.isBlank()) {
+        if (senhaTextoPlano == null || senhaTextoPlano.trim().isEmpty()) {
             throw new RegraNegocioException("A senha do usuário não pode ser vazia.");
         }
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] bytes = digest.digest(senhaTextoPlano.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(bytes);
+            StringBuilder hex = new StringBuilder();
+            for (int i = 0; i < bytes.length; i++) {
+                hex.append(String.format("%02x", bytes[i]));
+            }
+            return hex.toString();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("Algoritmo SHA-256 indisponível na JVM.", e);
         }
@@ -107,7 +95,7 @@ public class Usuario {
     }
 
     public final void setNome(String nome) {
-        if (nome == null || nome.isBlank()) {
+        if (nome == null || nome.trim().isEmpty()) {
             throw new RegraNegocioException("O nome do usuário é obrigatório.");
         }
         this.nome = nome.trim();
@@ -118,7 +106,7 @@ public class Usuario {
     }
 
     public final void setLogin(String login) {
-        if (login == null || login.isBlank()) {
+        if (login == null || login.trim().isEmpty()) {
             throw new RegraNegocioException("O login do usuário é obrigatório.");
         }
         this.login = login.trim().toLowerCase();
@@ -129,7 +117,7 @@ public class Usuario {
     }
 
     public final void setSenhaHash(String senhaHash) {
-        if (senhaHash == null || senhaHash.isBlank()) {
+        if (senhaHash == null || senhaHash.trim().isEmpty()) {
             throw new RegraNegocioException("O hash da senha é obrigatório.");
         }
         this.senhaHash = senhaHash.trim().toLowerCase();
@@ -148,9 +136,14 @@ public class Usuario {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (!(o instanceof Usuario that)) return false;
-        return Objects.equals(login, that.login);
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Usuario)) {
+            return false;
+        }
+        Usuario outro = (Usuario) o;
+        return Objects.equals(this.login, outro.login);
     }
 
     @Override

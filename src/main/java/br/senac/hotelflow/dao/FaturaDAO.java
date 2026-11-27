@@ -14,11 +14,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.sql.Timestamp;
 import java.sql.Types;
-import java.util.Optional;
 
 /**
  * DAO JDBC responsável pelo acesso à tabela {@code fatura}, garantindo persistência dos
- * valores históricos congelados ({@code D06}) e hidratação do cupom e pagamentos vinculados.
+ * valores históricos congelados ({@code D06}) e bloqueio transacional em pagamentos simultâneos.
  *
  * <p>Rastreabilidade: {@code [Atende RN13..RN18, D06]}
  */
@@ -113,7 +112,26 @@ public class FaturaDAO {
         }
     }
 
-    public Optional<Fatura> buscarPorReserva(Reserva reserva) {
+    /**
+     * Adquire bloqueio exclusivo ({@code SELECT ... FOR UPDATE}) sobre a fatura vinculada à reserva
+     * na transação corrente, evitando leitura concorrente de saldo defasado ({@code RN14, RN15, RN16}).
+     */
+    public void bloquearPorReserva(Connection conn, int idReserva) {
+        if (conn == null) {
+            return;
+        }
+        String sql = "SELECT id_fatura FROM fatura WHERE id_reserva = ? FOR UPDATE";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idReserva);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("Erro ao bloquear fatura da reserva ID " + idReserva + ": " + e.getMessage(), e);
+        }
+    }
+
+    public Fatura buscarPorReserva(Reserva reserva) {
         try (Connection conn = connectionFactory.getConnection()) {
             return buscarPorReserva(conn, reserva);
         } catch (SQLException e) {
@@ -121,15 +139,12 @@ public class FaturaDAO {
         }
     }
 
-    /**
-     * Recupera a fatura única associada a uma reserva (hidratando cupom e parcelas de pagamento).
-     */
-    public Optional<Fatura> buscarPorReserva(Connection conn, Reserva reserva) {
+    public Fatura buscarPorReserva(Connection conn, Reserva reserva) {
         if (reserva == null || reserva.getIdReserva() == null) {
-            return Optional.empty();
+            return null;
         }
         if (reserva.getFatura() != null) {
-            return Optional.of(reserva.getFatura());
+            return reserva.getFatura();
         }
         String sql = """
                 SELECT f.id_fatura, f.data_emissao, f.quantidade_diarias, f.tarifa_diaria_aplicada,
@@ -143,7 +158,7 @@ public class FaturaDAO {
             ps.setInt(1, reserva.getIdReserva());
             try (ResultSet rs = ps.executeQuery()) {
                 if (!rs.next()) {
-                    return Optional.empty();
+                    return null;
                 }
                 CupomDesconto cupom = null;
                 int idCupom = rs.getInt("id_cupom");
@@ -172,7 +187,7 @@ public class FaturaDAO {
                 for (Pagamento pag : pagamentoDAO.listarPorFatura(conn, fatura.getIdFatura())) {
                     fatura.hidratarPagamento(pag);
                 }
-                return Optional.of(fatura);
+                return fatura;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao hidratar fatura da reserva ID " + reserva.getIdReserva() + ": " + e.getMessage(), e);

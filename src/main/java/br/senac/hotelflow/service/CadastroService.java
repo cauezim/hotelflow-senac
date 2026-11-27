@@ -13,7 +13,6 @@ import br.senac.hotelflow.model.Quarto;
 import br.senac.hotelflow.model.Usuario;
 import java.math.BigDecimal;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Serviço de aplicação para manutenção dos cadastros estruturais do hotel:
@@ -50,8 +49,8 @@ public class CadastroService {
         if (novoHospede == null) {
             throw new RegraNegocioException("Os dados do hóspede são obrigatórios.");
         }
-        Optional<Hospede> existente = hospedeDAO.buscarPorDocumento(novoHospede.getDocumento());
-        if (existente.isPresent()) {
+        Hospede existente = hospedeDAO.buscarPorDocumento(novoHospede.getDocumento());
+        if (existente != null) {
             throw new RegraNegocioException(
                     "Já existe um hóspede cadastrado com o documento '" + novoHospede.getDocumento() + "'.");
         }
@@ -63,11 +62,13 @@ public class CadastroService {
         if (hospede == null || hospede.getIdHospede() == null) {
             throw new RegraNegocioException("Informe um hóspede já cadastrado para atualização.");
         }
-        hospedeDAO.buscarPorId(hospede.getIdHospede())
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Hóspede não encontrado (ID " + hospede.getIdHospede() + ")."));
+        Hospede atual = hospedeDAO.buscarPorId(hospede.getIdHospede());
+        if (atual == null) {
+            throw new EntidadeNaoEncontradaException("Hóspede não encontrado (ID " + hospede.getIdHospede() + ").");
+        }
 
-        Optional<Hospede> docConflitante = hospedeDAO.buscarPorDocumento(hospede.getDocumento());
-        if (docConflitante.isPresent() && !docConflitante.get().getIdHospede().equals(hospede.getIdHospede())) {
+        Hospede docConflitante = hospedeDAO.buscarPorDocumento(hospede.getDocumento());
+        if (docConflitante != null && !docConflitante.getIdHospede().equals(hospede.getIdHospede())) {
             throw new RegraNegocioException(
                     "O documento '" + hospede.getDocumento() + "' já pertence a outro hóspede cadastrado.");
         }
@@ -79,7 +80,7 @@ public class CadastroService {
         return hospedeDAO.listarTodos();
     }
 
-    public Optional<Hospede> buscarHospedePorDocumento(Usuario operador, String documento) {
+    public Hospede buscarHospedePorDocumento(Usuario operador, String documento) {
         AutenticacaoService.exigirPermissao(operador, "MANTER_HOSPEDES");
         return hospedeDAO.buscarPorDocumento(documento);
     }
@@ -90,7 +91,7 @@ public class CadastroService {
 
     public CategoriaQuarto cadastrarCategoria(Usuario operadorGerente, CategoriaQuarto categoria) {
         AutenticacaoService.exigirPermissao(operadorGerente, "MANTER_CATEGORIAS_TARIFAS");
-        if (categoriaDAO.buscarPorNome(categoria.getNome()).isPresent()) {
+        if (categoriaDAO.buscarPorNome(categoria.getNome()) != null) {
             throw new RegraNegocioException("A categoria '" + categoria.getNome() + "' já está cadastrada.");
         }
         return categoriaDAO.salvar(categoria);
@@ -98,8 +99,10 @@ public class CadastroService {
 
     public CategoriaQuarto atualizarTarifaDiaria(Usuario operadorGerente, int idCategoria, BigDecimal novaTarifa) {
         AutenticacaoService.exigirPermissao(operadorGerente, "MANTER_CATEGORIAS_TARIFAS");
-        CategoriaQuarto categoria = categoriaDAO.buscarPorId(idCategoria)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Categoria não encontrada (ID " + idCategoria + ")."));
+        CategoriaQuarto categoria = categoriaDAO.buscarPorId(idCategoria);
+        if (categoria == null) {
+            throw new EntidadeNaoEncontradaException("Categoria não encontrada (ID " + idCategoria + ").");
+        }
         categoria.atualizarTarifa(novaTarifa);
         categoriaDAO.atualizar(categoria);
         return categoria;
@@ -118,7 +121,7 @@ public class CadastroService {
         if (novoQuarto == null) {
             throw new RegraNegocioException("Os dados do quarto são obrigatórios.");
         }
-        if (quartoDAO.buscarPorNumero(novoQuarto.getNumero()).isPresent()) {
+        if (quartoDAO.buscarPorNumero(novoQuarto.getNumero()) != null) {
             throw new RegraNegocioException("Já existe um quarto cadastrado com o número '" + novoQuarto.getNumero() + "'.");
         }
         return quartoDAO.salvar(novoQuarto);
@@ -129,11 +132,13 @@ public class CadastroService {
         if (quarto == null || quarto.getIdQuarto() == null) {
             throw new RegraNegocioException("Informe um quarto válido para atualização.");
         }
-        quartoDAO.buscarPorId(quarto.getIdQuarto())
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Quarto não encontrado (ID " + quarto.getIdQuarto() + ")."));
+        Quarto atual = quartoDAO.buscarPorId(quarto.getIdQuarto());
+        if (atual == null) {
+            throw new EntidadeNaoEncontradaException("Quarto não encontrado (ID " + quarto.getIdQuarto() + ").");
+        }
 
-        Optional<Quarto> numeroConflitante = quartoDAO.buscarPorNumero(quarto.getNumero());
-        if (numeroConflitante.isPresent() && !numeroConflitante.get().getIdQuarto().equals(quarto.getIdQuarto())) {
+        Quarto numeroConflitante = quartoDAO.buscarPorNumero(quarto.getNumero());
+        if (numeroConflitante != null && !numeroConflitante.getIdQuarto().equals(quarto.getIdQuarto())) {
             throw new RegraNegocioException("Já existe outro quarto cadastrado com o número '" + quarto.getNumero() + "'.");
         }
         quartoDAO.atualizar(quarto);
@@ -152,7 +157,7 @@ public class CadastroService {
         if (cupom == null) {
             throw new RegraNegocioException("Os dados do cupom são obrigatórios.");
         }
-        if (cupomDAO.buscarPorCodigo(cupom.getCodigo()).isPresent()) {
+        if (cupomDAO.buscarPorCodigo(cupom.getCodigo()) != null) {
             throw new RegraNegocioException("Já existe um cupom cadastrado com o código '" + cupom.getCodigo() + "'.");
         }
         return cupomDAO.salvar(cupom);
@@ -160,8 +165,10 @@ public class CadastroService {
 
     public CupomDesconto alterarAtivacaoCupom(Usuario operadorGerente, int idCupom, boolean ativo) {
         AutenticacaoService.exigirPermissao(operadorGerente, "MANTER_CUPONS");
-        CupomDesconto cupom = cupomDAO.buscarPorId(idCupom)
-                .orElseThrow(() -> new EntidadeNaoEncontradaException("Cupom não encontrado (ID " + idCupom + ")."));
+        CupomDesconto cupom = cupomDAO.buscarPorId(idCupom);
+        if (cupom == null) {
+            throw new EntidadeNaoEncontradaException("Cupom não encontrado (ID " + idCupom + ").");
+        }
         if (ativo) {
             cupom.ativar();
         } else {

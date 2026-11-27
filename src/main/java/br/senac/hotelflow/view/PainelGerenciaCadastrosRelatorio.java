@@ -14,6 +14,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -29,6 +31,8 @@ import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.JTextField;
 import javax.swing.SpinnerNumberModel;
+import javax.swing.event.ListSelectionEvent;
+import javax.swing.event.ListSelectionListener;
 import javax.swing.table.DefaultTableModel;
 
 /**
@@ -44,7 +48,6 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
     private final CadastroService cadastroService;
     private final RelatorioOcupacaoService relatorioService;
 
-    // Sub-aba 1: Tarifas e Quartos
     private List<CategoriaQuarto> categorias = new ArrayList<>();
     private final DefaultTableModel modeloCategorias = new DefaultTableModel(
             new Object[]{"ID", "Categoria", "Tarifa Diária Vigente (R$)"}, 0) {
@@ -68,7 +71,6 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         }
     };
 
-    // Sub-aba 2: Cupons de Desconto
     private List<CupomDesconto> cupons = new ArrayList<>();
     private final JTextField txtCodigoNovoCupom = new JTextField(12);
     private final JTextField txtPercentualCupom = new JTextField("10,00", 8);
@@ -81,7 +83,6 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
     };
     private final JTable tabelaCupons = new JTable(modeloCupons);
 
-    // Sub-aba 3: Relatório Mensal RN20
     private final JSpinner spnMes = new JSpinner(new SpinnerNumberModel(LocalDate.now().getMonthValue(), 1, 12, 1));
     private final JSpinner spnAno = new JSpinner(new SpinnerNumberModel(LocalDate.now().getYear(), 2020, 2035, 1));
     private final JLabel lblResumoOcupacao = new JLabel("Selecione o mês/ano e clique em Gerar Relatório.");
@@ -120,16 +121,18 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         p.setBackground(UiTheme.FUNDO_CLARO);
         p.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Esquerda: Categorias e Tarifas [RN04]
         JPanel esq = new JPanel(new BorderLayout(8, 8));
         esq.setBackground(UiTheme.BRANCO);
         esq.setBorder(UiTheme.criarBordaTitulada("Categorias e Tarifas Diárias [RN04]"));
 
         UiTheme.padronizarTabela(tabelaCategorias);
-        tabelaCategorias.getSelectionModel().addListSelectionListener(e -> {
-            int row = tabelaCategorias.getSelectedRow();
-            if (!e.getValueIsAdjusting() && row >= 0 && row < categorias.size()) {
-                txtNovaTarifa.setText(categorias.get(row).getTarifaDiaria().toPlainString());
+        tabelaCategorias.getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+            @Override
+            public void valueChanged(ListSelectionEvent e) {
+                int row = tabelaCategorias.getSelectedRow();
+                if (!e.getValueIsAdjusting() && row >= 0 && row < categorias.size()) {
+                    txtNovaTarifa.setText(categorias.get(row).getTarifaDiaria().toPlainString());
+                }
             }
         });
         esq.add(new JScrollPane(tabelaCategorias), BorderLayout.CENTER);
@@ -139,11 +142,15 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         rodapeTarifa.add(new JLabel("Nova Tarifa (R$):"));
         rodapeTarifa.add(txtNovaTarifa);
         JButton btnAtualizarTarifa = UiTheme.criarBotaoPrimario("Atualizar Tarifa da Categoria");
-        btnAtualizarTarifa.addActionListener(e -> salvarNovaTarifaCategoria());
+        btnAtualizarTarifa.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                salvarNovaTarifaCategoria();
+            }
+        });
         rodapeTarifa.add(btnAtualizarTarifa);
         esq.add(rodapeTarifa, BorderLayout.SOUTH);
 
-        // Direita: Cadastro de Quartos [RN03]
         JPanel dir = new JPanel(new BorderLayout(8, 8));
         dir.setBackground(UiTheme.BRANCO);
         dir.setBorder(UiTheme.criarBordaTitulada("Cadastro e Mapa de Quartos [RN03]"));
@@ -165,7 +172,12 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         gbc.gridx = 3; gbc.weightx = 0.5; formQto.add(cmbCategoriaQuarto, gbc);
 
         JButton btnNovoQuarto = UiTheme.criarBotaoSucesso("Cadastrar Novo Quarto");
-        btnNovoQuarto.addActionListener(e -> cadastrarNovoQuarto());
+        btnNovoQuarto.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cadastrarNovoQuarto();
+            }
+        });
         gbc.gridx = 0; gbc.gridy = 2; gbc.gridwidth = 4;
         formQto.add(btnNovoQuarto, gbc);
 
@@ -194,7 +206,12 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         topo.add(txtPercentualCupom);
 
         JButton btnCriarCupom = UiTheme.criarBotaoSucesso("Cadastrar Cupom");
-        btnCriarCupom.addActionListener(e -> cadastrarNovoCupom());
+        btnCriarCupom.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                cadastrarNovoCupom();
+            }
+        });
         topo.add(btnCriarCupom);
 
         p.add(topo, BorderLayout.NORTH);
@@ -207,7 +224,12 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 6));
         rodape.setBackground(UiTheme.BRANCO);
         JButton btnAlternar = UiTheme.criarBotaoPrimario("Ativar / Desativar Cupom Selecionado");
-        btnAlternar.addActionListener(e -> alternarStatusCupomSelecionado());
+        btnAlternar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                alternarStatusCupomSelecionado();
+            }
+        });
         rodape.add(btnAlternar);
         p.add(rodape, BorderLayout.SOUTH);
 
@@ -229,17 +251,26 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         filtro.add(spnAno);
 
         JButton btnGerar = UiTheme.criarBotaoPrimario("Calcular Taxa de Ocupação do Mês");
-        btnGerar.addActionListener(e -> gerarRelatorioMensal());
+        btnGerar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                gerarRelatorioMensal();
+            }
+        });
         filtro.add(btnGerar);
 
         JButton btnTexto = UiTheme.criarBotaoSecundario("Exibir Relatório Textual p/ Impressão");
-        btnTexto.addActionListener(e -> {
-            if (ultimoRelatorio == null) {
-                gerarRelatorioMensal();
-            }
-            if (ultimoRelatorio != null) {
-                DialogoTextoModal.exibir(this, "Relatório Gerencial de Ocupação [RN20]",
-                        relatorioService.formatarRelatorioTexto(ultimoRelatorio));
+        btnTexto.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (ultimoRelatorio == null) {
+                    gerarRelatorioMensal();
+                }
+                if (ultimoRelatorio != null) {
+                    DialogoTextoModal.exibir(PainelGerenciaCadastrosRelatorio.this,
+                            "Relatório Gerencial de Ocupação [RN20]",
+                            relatorioService.formatarRelatorioTexto(ultimoRelatorio));
+                }
             }
         });
         filtro.add(btnTexto);
@@ -291,7 +322,7 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
                     txtNumQuarto.getText(),
                     (Integer) spnAndar.getValue(),
                     (Integer) spnCapacidade.getValue(),
-                    selCat.categoria()
+                    selCat.getCategoria()
             );
             cadastroService.cadastrarQuarto(usuarioGerente, novo);
             txtNumQuarto.setText("");
@@ -340,19 +371,19 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
             lblResumoOcupacao.setText(String.format(
                     "Competência %02d/%d  |  Quartos: %d  |  Capacidade: %d quartos-dia  |  Ocupados: %d quartos-dia  |  TAXA GLOBAL: %s%%",
                     mes, ano,
-                    ultimoRelatorio.totalQuartosCadastrados(),
-                    ultimoRelatorio.capacidadeTotalQuartosDia(),
-                    ultimoRelatorio.totalQuartosDiaOcupados(),
-                    ultimoRelatorio.taxaOcupacaoPercentual()
+                    ultimoRelatorio.getTotalQuartosCadastrados(),
+                    ultimoRelatorio.getCapacidadeTotalQuartosDia(),
+                    ultimoRelatorio.getTotalQuartosDiaOcupados(),
+                    ultimoRelatorio.getTaxaOcupacaoPercentual()
             ));
 
             modeloOcupacao.setRowCount(0);
-            for (OcupacaoPorQuarto item : ultimoRelatorio.detalhamentoQuartos()) {
+            for (OcupacaoPorQuarto item : ultimoRelatorio.getDetalhamentoQuartos()) {
                 modeloOcupacao.addRow(new Object[]{
-                        item.numeroQuarto(),
-                        item.categoria(),
-                        item.diariasOcupadas() + " diária(s)",
-                        item.percentualQuarto() + "%"
+                        item.getNumeroQuarto(),
+                        item.getCategoria(),
+                        item.getDiariasOcupadas() + " diária(s)",
+                        item.getPercentualQuarto() + "%"
                 });
             }
         } catch (Exception ex) {
@@ -400,7 +431,17 @@ public class PainelGerenciaCadastrosRelatorio extends JPanel implements Atualiza
         }
     }
 
-    private record ItemCategoria(CategoriaQuarto categoria) {
+    private static class ItemCategoria {
+        private final CategoriaQuarto categoria;
+
+        public ItemCategoria(CategoriaQuarto categoria) {
+            this.categoria = categoria;
+        }
+
+        public CategoriaQuarto getCategoria() {
+            return categoria;
+        }
+
         @Override
         public String toString() {
             return categoria.getNome() + " (R$ " + categoria.getTarifaDiaria() + ")";

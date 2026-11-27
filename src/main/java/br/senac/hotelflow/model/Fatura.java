@@ -201,10 +201,11 @@ public class Fatura {
      * <p>Rastreabilidade: {@code [Atende RN15, RN16]}
      */
     public BigDecimal calcularTotalPago() {
-        return pagamentos.stream()
-                .map(Pagamento::getValor)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal total = BigDecimal.ZERO;
+        for (Pagamento p : this.pagamentos) {
+            total = total.add(p.getValor());
+        }
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**

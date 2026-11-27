@@ -18,6 +18,8 @@ import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.GridLayout;
 import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -52,7 +54,6 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
 
     private final JComboBox<ItemReserva> cmbReserva = new JComboBox<>();
 
-    // Indicadores do Demonstrativo
     private final JLabel lblResumoDiarias = new JLabel("-");
     private final JLabel lblResumoExtras = new JLabel("-");
     private final JLabel lblValorBruto = new JLabel("R$ 0.00");
@@ -62,7 +63,6 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
     private final JLabel lblSaldoDevedor = new JLabel("R$ 0.00");
     private final JLabel lblStatusFatura = new JLabel("Nenhuma fatura aberta");
 
-    // Desconto e Pagamento
     private final JTextField txtCodigoCupom = new JTextField(12);
     private final JComboBox<FormaPagamento> cmbFormaPagamento = new JComboBox<>(FormaPagamento.values());
     private final JTextField txtValorPagamento = new JTextField(10);
@@ -89,7 +89,6 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
         setBackground(UiTheme.FUNDO_CLARO);
         setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Topo: Seleção da Reserva Em Andamento e Abertura da Fatura
         JPanel topo = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 6));
         topo.setBackground(UiTheme.BRANCO);
         topo.setBorder(UiTheme.criarBordaTitulada("1. Selecionar Reserva Em Andamento e Abrir Fatura [RN13]"));
@@ -98,16 +97,25 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
         topo.add(cmbReserva);
 
         JButton btnAbrirFatura = UiTheme.criarBotaoPrimario("Gerar / Retomar Fatura de Check-out");
-        btnAbrirFatura.addActionListener(e -> abrirOuRetomarFatura());
+        btnAbrirFatura.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                abrirOuRetomarFatura();
+            }
+        });
         topo.add(btnAbrirFatura);
 
         JButton btnRecarregar = UiTheme.criarBotaoSecundario("Atualizar Lista");
-        btnRecarregar.addActionListener(e -> atualizarDados());
+        btnRecarregar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                atualizarDados();
+            }
+        });
         topo.add(btnRecarregar);
 
         add(topo, BorderLayout.NORTH);
 
-        // Centro: Demonstrativo + Ações de Cupom e Pagamento
         JPanel centro = new JPanel(new BorderLayout(10, 10));
         centro.setOpaque(false);
 
@@ -128,7 +136,6 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
 
         centro.add(cardDemonstrativo, BorderLayout.NORTH);
 
-        // Linha dupla: Cupom Gerencial (RN14) | Registrar Pagamento (RN15, RN16)
         JPanel acoesFinanceiras = new JPanel(new GridLayout(1, 2, 12, 12));
         acoesFinanceiras.setOpaque(false);
         acoesFinanceiras.add(construirBlocoCupom());
@@ -137,7 +144,6 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
         centro.add(acoesFinanceiras, BorderLayout.CENTER);
         add(centro, BorderLayout.CENTER);
 
-        // Rodapé: Tabela de Pagamentos Fracionados
         JTable tabPag = new JTable(modeloPagamentos);
         UiTheme.padronizarTabela(tabPag);
         JScrollPane scrollPag = new JScrollPane(tabPag);
@@ -168,7 +174,12 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
         gbc.gridx = 1; gbc.weightx = 1.0; p.add(txtCodigoCupom, gbc);
 
         JButton btnAplicar = UiTheme.criarBotaoPrimario("Validar Permissão e Aplicar Cupom");
-        btnAplicar.addActionListener(e -> aplicarCupomComAutorizacaoGerencial());
+        btnAplicar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                aplicarCupomComAutorizacaoGerencial();
+            }
+        });
         gbc.gridx = 0; gbc.gridy = 1; gbc.gridwidth = 2;
         p.add(btnAplicar, gbc);
 
@@ -199,14 +210,22 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
         botoes.setOpaque(false);
 
         JButton btnSaldoTotal = UiTheme.criarBotaoSecundario("Usar Saldo Total");
-        btnSaldoTotal.addActionListener(e -> {
-            if (faturaAtual != null) {
-                txtValorPagamento.setText(faturaAtual.calcularSaldoDevedor().toPlainString());
+        btnSaldoTotal.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (faturaAtual != null) {
+                    txtValorPagamento.setText(faturaAtual.calcularSaldoDevedor().toPlainString());
+                }
             }
         });
 
         JButton btnPagar = UiTheme.criarBotaoSucesso("Registrar Pagamento / Quitar");
-        btnPagar.addActionListener(e -> registrarParcelaPagamento());
+        btnPagar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                registrarParcelaPagamento();
+            }
+        });
 
         botoes.add(btnSaldoTotal);
         botoes.add(btnPagar);
@@ -223,7 +242,7 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
             return;
         }
         try {
-            this.idReservaAberta = sel.idReserva();
+            this.idReservaAberta = sel.getIdReserva();
             this.faturaAtual = checkOutService.iniciarOuRetomarCheckOut(usuarioLogado, idReservaAberta, LocalDateTime.now());
             preencherDemonstrativo(faturaAtual);
             txtValorPagamento.setText(faturaAtual.calcularSaldoDevedor().toPlainString());
@@ -283,7 +302,6 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
             BigDecimal valorInformado = UiTheme.lerValorMonetario(txtValorPagamento.getText(), "Valor a Pagar");
             FormaPagamento forma = (FormaPagamento) cmbFormaPagamento.getSelectedItem();
 
-            // Suporte amigável a troco em Dinheiro (FA06 da E3)
             BigDecimal saldoAtual = faturaAtual.calcularSaldoDevedor();
             BigDecimal troco = BigDecimal.ZERO;
             BigDecimal valorAmortizar = valorInformado;
@@ -295,16 +313,16 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
             ResultadoCheckOut resultado = checkOutService.registrarPagamento(
                     usuarioLogado, idReservaAberta, valorAmortizar, forma, LocalDateTime.now());
 
-            this.faturaAtual = resultado.fatura();
+            this.faturaAtual = resultado.getFatura();
             preencherDemonstrativo(faturaAtual);
 
-            if (resultado.checkOutEncerrado()) {
+            if (resultado.isCheckOutEncerrado()) {
                 String msgTroco = troco.compareTo(BigDecimal.ZERO) > 0
                         ? "\n\n[TROCO EM DINHEIRO A DEVOLVER AO HÓSPEDE: R$ " + troco + "]"
                         : "";
                 DialogoTextoModal.exibir(this,
                         "Check-out Concluído – Recibo de Hospedagem [RN17, RN18]",
-                        resultado.reciboTexto() + msgTroco);
+                        resultado.getReciboTexto() + msgTroco);
                 limparPainelPosEncerramento();
                 atualizarDados();
             } else {
@@ -377,7 +395,19 @@ public class PainelCheckOutFaturamento extends JPanel implements Atualizavel {
         }
     }
 
-    private record ItemReserva(Integer idReserva, String rotulo) {
+    private static class ItemReserva {
+        private final Integer idReserva;
+        private final String rotulo;
+
+        public ItemReserva(Integer idReserva, String rotulo) {
+            this.idReserva = idReserva;
+            this.rotulo = rotulo;
+        }
+
+        public Integer getIdReserva() {
+            return idReserva;
+        }
+
         @Override
         public String toString() {
             return rotulo;

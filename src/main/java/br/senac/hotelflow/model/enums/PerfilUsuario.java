@@ -1,6 +1,7 @@
 package br.senac.hotelflow.model.enums;
 
-import java.util.Set;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Perfis de acesso dos colaboradores autenticáveis no sistema, encapsulando a matriz
@@ -10,12 +11,12 @@ import java.util.Set;
  */
 public enum PerfilUsuario {
 
-    CAMAREIRA("Camareira", Set.of(
+    CAMAREIRA("Camareira", Arrays.asList(
             "AUTENTICAR",
             "ATUALIZAR_LIMPEZA"
     )),
 
-    RECEPCIONISTA("Recepcionista", Set.of(
+    RECEPCIONISTA("Recepcionista", Arrays.asList(
             "AUTENTICAR",
             "MANTER_HOSPEDES",
             "CONSULTAR_HISTORICO",
@@ -30,7 +31,7 @@ public enum PerfilUsuario {
             "EMITIR_RECIBO"
     )),
 
-    GERENTE("Gerente", Set.of(
+    GERENTE("Gerente", Arrays.asList(
             // Herda integralmente as operações de Recepcionista [Atende D04]
             "AUTENTICAR",
             "MANTER_HOSPEDES",
@@ -53,9 +54,9 @@ public enum PerfilUsuario {
     ));
 
     private final String descricao;
-    private final Set<String> operacoesPermitidas;
+    private final List<String> operacoesPermitidas;
 
-    PerfilUsuario(String descricao, Set<String> operacoesPermitidas) {
+    PerfilUsuario(String descricao, List<String> operacoesPermitidas) {
         this.descricao = descricao;
         this.operacoesPermitidas = operacoesPermitidas;
     }
@@ -64,14 +65,8 @@ public enum PerfilUsuario {
         return descricao;
     }
 
-    /**
-     * Verifica se o perfil possui permissão para determinada operação do sistema.
-     *
-     * @param operacao chave da operação (ex.: {@code "APLICAR_DESCONTO"})
-     * @return {@code true} caso autorizado
-     */
     public boolean possuiPermissao(String operacao) {
-        if (operacao == null || operacao.isBlank()) {
+        if (operacao == null || operacao.trim().isEmpty()) {
             return false;
         }
         return operacoesPermitidas.contains(operacao.trim().toUpperCase());

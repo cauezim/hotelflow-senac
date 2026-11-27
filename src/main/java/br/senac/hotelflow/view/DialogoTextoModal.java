@@ -7,6 +7,8 @@ import java.awt.FlowLayout;
 import java.awt.Toolkit;
 import java.awt.Window;
 import java.awt.datatransfer.StringSelection;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JDialog;
@@ -28,7 +30,7 @@ public class DialogoTextoModal extends JDialog {
         dialog.setVisible(true);
     }
 
-    private DialogoTextoModal(Window pai, String titulo, String conteudoTexto) {
+    private DialogoTextoModal(Window pai, String titulo, final String conteudoTexto) {
         super(pai, titulo, ModalityType.APPLICATION_MODAL);
         setLayout(new BorderLayout(10, 10));
         setPreferredSize(new Dimension(680, 520));
@@ -45,14 +47,22 @@ public class DialogoTextoModal extends JDialog {
 
         JPanel rodape = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 10));
         JButton btnCopiar = UiTheme.criarBotaoSecundario("Copiar Texto");
-        btnCopiar.addActionListener(e -> {
-            Toolkit.getDefaultToolkit().getSystemClipboard()
-                    .setContents(new StringSelection(conteudoTexto), null);
-            UiTheme.exibirSucesso(this, "Conteúdo copiado para a área de transferência!");
+        btnCopiar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                Toolkit.getDefaultToolkit().getSystemClipboard()
+                        .setContents(new StringSelection(conteudoTexto), null);
+                UiTheme.exibirSucesso(DialogoTextoModal.this, "Conteúdo copiado para a área de transferência!");
+            }
         });
 
         JButton btnFechar = UiTheme.criarBotaoPrimario("Fechar");
-        btnFechar.addActionListener(e -> dispose());
+        btnFechar.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                dispose();
+            }
+        });
 
         rodape.add(btnCopiar);
         rodape.add(btnFechar);

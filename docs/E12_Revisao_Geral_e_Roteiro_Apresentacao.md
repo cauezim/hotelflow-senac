@@ -13,15 +13,16 @@
 | **Escopo Funcional** | Atendimento integral às 20 regras de negócio (`RN01`–`RN20`) sem extrapolação de escopo | **100% OK** | [E1](E1_Analise_Requisitos_e_Glossario.md) e [Matriz E11](E11_Testes_e_Matriz_Rastreabilidade.md) |
 | **Modelagem AOO** | Casos de Uso (`E2`), Especificação `UC13` (`E3`), Abbott (`E4`), Classes (`E5`), Estados (`E6`) e Sequência (`E7`) | **100% OK** | `docs/E2..E7.md`, `.puml` e [HotelFlow_Modelagem_UML.pdf](diagramas/HotelFlow_Modelagem_UML.pdf) |
 | **Banco de Dados** | Modelagem MySQL 8 (`InnoDB`), `PK`, `FK`, `UNIQUE`, `CHECK`, índices compostos e carga inicial | **100% OK** | [E8](E8_Modelagem_Banco_de_Dados.md), [DER PDF](diagramas/E8_DER_Logico_Fisico.pdf) e pasta `sql/` |
-| **Arquitetura POO** | Projeto Java 17 Maven nativo no Apache NetBeans em camadas estritas (`model`, `dao`, `service`, `view`, `config`, `exception`) | **100% OK** | [E9](E9_Arquitetura_Camadas.md), [pom.xml](../pom.xml) e 60 arquivos em `src/main/java` |
-| **Domínio Rico** | Encapsulamento real nas entidades, `Enums` ricos, `BigDecimal`, SHA-256 e exceções customizadas | **100% OK** | Pacotes `model`, `model.enums` e `exception` |
-| **Persistência JDBC** | `ConnectionFactory` Singleton + transações ACID (`commit`/`rollback`) no Check-in (`RN09`) e Check-out (`RN17`) | **100% OK** | `ConnectionFactory.java` e 10 classes `DAO` |
-| **Interface Gráfica** | Aplicação Desktop Java Swing adaptativa por perfil (`Gerente`, `Recepcionista`, `Camareira`) | **100% OK** | Pacote `br.senac.hotelflow.view` |
-| **Qualidade & Testes** | Suíte automatizada JUnit 5 compilando e passando 100% no NetBeans (`Alt + F6`) | **100% OK** | 5 suítes em `src/test/java` |
+| **Arquitetura POO** | Projeto Java 17 Maven nativo no Apache NetBeans em camadas estritas (`model`, `dao`, `service`, `view`, `config`, `exception`) alinhado aos slides de POO | **100% OK** | [E9](E9_Arquitetura_Camadas.md), [pom.xml](../pom.xml) e 60 classes em `src/main/java` |
+| **Domínio Rico** | Encapsulamento real nas entidades, `Enums` tipados, `BigDecimal`, SHA-256, laços `for-each` clássicos e exceções customizadas | **100% OK** | Pacotes `model`, `model.enums` e `exception` |
+| **Persistência & Concorrência** | `ConnectionFactory` Singleton + transações ACID (`READ_COMMITTED` + `SELECT ... FOR UPDATE`) impedindo conflitos simultâneos em `RN06` e `RN15..RN17` | **100% OK** | `ConnectionFactory.java`, `ReservaService`, `CheckOutService` e 10 classes `DAO` |
+| **Notificação E-mail (`RN08`)** | Envio real via protocolo SMTP (`SmtpEmailService` – Jakarta Mail) com *fallback* automático para console/modal caso offline | **100% OK** | Pacote `br.senac.hotelflow.service.notificacao` |
+| **Interface Gráfica** | Aplicação Desktop Java Swing adaptativa por perfil (`Gerente`, `Recepcionista`, `Camareira`) com `ActionListener` tradicional | **100% OK** | Pacote `br.senac.hotelflow.view` |
+| **Qualidade & Testes** | Suíte automatizada JUnit 5 com 15 testes compilando sem avisos e passando 100% no NetBeans (`Alt + F6`) | **100% OK** | 5 suítes em `src/test/java` |
 
 ---
 
-## 2. Roteiro Sugerido de Apresentação para a Dupla (~12 Minutos)
+## 2. Roteiro Sugerido de Apresentação para aEquipe (~12 Minutos)
 
 ### Parte 1 – Engenharia de Requisitos, UML e Banco de Dados (~6 min)
 **Responsável sugerido:** **Cauê**
@@ -42,10 +43,10 @@
 **Responsável sugerido:** **Vanderlei Ricardo**
 
 1. **Arquitetura Java 17 no NetBeans (1,5 min):**
-   - Mostrar a árvore de pacotes (`config`, `exception`, `model`, `dao`, `service`, `view`): explicar que a `view` **nunca** executa SQL diretamente, e que `CheckOutService` usa transação única JDBC (`setAutoCommit(false)`) para evitar inconsistência entre pagamento final e liberação do quarto.
+   - Mostrar a árvore de pacotes (`config`, `exception`, `model`, `dao`, `service`, `view`): explicar que a `view` **nunca** executa SQL diretamente, que `SmtpEmailService` implementa a interface `EmailService` com *fallback* seguro (`RN08`), e que `ReservaService` / `CheckOutService` usam transação JDBC com `SELECT ... FOR UPDATE` para impedir reservas conflitantes ou pagamentos duplicados simultâneos.
 2. **Demonstração ao Vivo na Interface Swing (`F6`) (3,5 min):**
    - **Login 1 – `recepcao` (`Recepcao@123`):**
-     1. Mostrar na aba *Reservas* a criação e confirmação de uma reserva $\rightarrow$ exibir o modal do **E-mail Automático (`RN08`)** e tentar confirmar outra sobreposta para mostrar o bloqueio da **`RN06`**!
+     1. Mostrar na aba *Reservas* a criação e confirmação de uma reserva $\rightarrow$ exibir o disparo do **E-mail Automático (`RN08`)** e tentar confirmar outra sobreposta para mostrar o bloqueio da **`RN06`**!
      2. Na aba *Estadia*, lançar 1 item de frigobar (`RN10`) na Reserva `#2` (Quarto `201`).
      3. Na aba *Check-out*, abrir a fatura da Reserva `#2` (`RN13`), clicar em **Aplicar Cupom `SENAC10`** $\rightarrow$ mostrar o sistema exigindo a senha do **Gerente** (`RN14`)!
      4. Fazer um **pagamento parcial** em `PIX` (`RN15`, `RN16` $\rightarrow$ fatura `Parcialmente Paga`, quarto segue `Ocupado`) e em seguida quitar o restante no `Cartão` $\rightarrow$ mostrar o **Recibo de Hospedagem (`RN18`)** na tela!
@@ -54,7 +55,7 @@
    - **Login 3 – `gerente` (`Gerente@123`):**
      - Entrar como Gerente, consultar o **Histórico Finalizado (`RN19`)** do hóspede e gerar na aba *Gerência* o **Relatório de Taxa de Ocupação Mensal (`RN20`)** de `11/2026`.
 3. **Fechamento com Testes Automatizados (`Alt + F6`) (1 min):**
-   - Rodar **`Test`** no NetBeans e mostrar os **13 testes JUnit 5 passando 100% verdes** cobrindo casos de borda (virada de mês, *day-use*, tentativa de burlar permissão e congelamento de tarifa).
+   - Rodar **`Test`** no NetBeans e mostrar os **15 testes JUnit 5 passando 100% verdes** cobrindo casos de borda (virada de mês, *day-use*, concorrência em reservas/pagamentos, fallback SMTP, tentativa de burlar permissão e congelamento de tarifa).
 
 ---
 
@@ -69,8 +70,8 @@
 3. **"Se o Gerente aumentar a diária do quarto Standard hoje de R$ 200 para R$ 300, o que acontece com as faturas do mês passado?"**
    - *Resposta:* Nada muda nas faturas antigas! Pela nossa decisão `D06`, no momento em que a `Fatura` é gerada no check-out, ela congela `tarifaDiariaAplicada`, `quantidadeDiarias` e `valorBruto` em colunas próprias na tabela `fatura`, preservando 100% a fidelidade histórica exigida na `RN19`.
 
-4. **"Por que o relacionamento entre `Quarto` e `CategoriaQuarto` é uma Associação simples e não uma Agregação?"**
-   - *Resposta:* Em UML 2.5, Agregação/Composição só deve ser usada quando existe semântica real **Todo-Parte** (ex.: `Reserva` contém itens de `ConsumoFrigobar`). Uma categoria é apenas uma **classificação/descritor** (*Item-Descriptor Pattern*) — um quarto físico não é "parte estrutural" de uma categoria.
+4. **"Como o sistema impede que dois recepcionistas confirmem reservas sobrepostas ao mesmo tempo (`RN06`) ou lancem pagamentos simultâneos sobre o mesmo saldo (`RN16`)?"**
+   - *Resposta:* Abrimos uma transação JDBC (`setAutoCommit(false)` com isolamento `READ_COMMITTED`) e executamos `SELECT ... FOR UPDATE` no MySQL InnoDB seguindo sempre a mesma ordem `reserva -> quarto -> fatura`. O primeiro operador trava o registro e o segundo aguarda na fila até o `commit`; quando o segundo prossegue, lê os dados já atualizados e a regra de negócio barra o conflito ou o pagamento excedente.
 
-5. **"O que garante que uma queda de energia no último pagamento não deixe a fatura paga mas o quarto preso como ocupado?"**
-   - *Resposta:* No `CheckOutService`, abrimos uma conexão JDBC com `setAutoCommit(false)` e executamos a inserção do pagamento final, a atualização da fatura para `PAGA`, a finalização da reserva e a liberação do quarto (`DISPONIVEL` + `SUJO`) sob um **único `commit()`** (ou `rollback()` completo em caso de erro).
+5. **"Como funciona o envio de e-mail da `RN08` se o computador da sala não tiver internet?"**
+   - *Resposta:* Aplicamos **Polimorfismo por Interface** (`EmailService`). A classe `SmtpEmailService` usa Jakarta Mail para enviar o e-mail real via SMTP quando configurado em `db.properties`, mas possui *timeout* de 5s e *fallback* automático para `ConsoleEmailService` + exibição em janela modal caso esteja sem rede, nunca travando a recepção do hotel.

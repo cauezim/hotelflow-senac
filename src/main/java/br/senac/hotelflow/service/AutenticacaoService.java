@@ -30,13 +30,11 @@ public class AutenticacaoService {
      * <p>Rastreabilidade: {@code [Atende RN01]}
      */
     public Usuario autenticar(String login, String senha) {
-        if (login == null || login.isBlank() || senha == null || senha.isBlank()) {
+        if (login == null || login.trim().isEmpty() || senha == null || senha.trim().isEmpty()) {
             throw new AutenticacaoException("Login e senha são obrigatórios para autenticação.");
         }
-        Usuario usuario = usuarioDAO.buscarPorLogin(login)
-                .orElseThrow(() -> new AutenticacaoException("Credenciais inválidas: login ou senha incorretos."));
-
-        if (!usuario.autenticar(senha)) {
+        Usuario usuario = usuarioDAO.buscarPorLogin(login);
+        if (usuario == null || !usuario.autenticar(senha)) {
             throw new AutenticacaoException("Credenciais inválidas: login ou senha incorretos.");
         }
         this.usuarioLogado = usuario;
@@ -52,8 +50,7 @@ public class AutenticacaoService {
     }
 
     /**
-     * Guarda transversal de segurança: garante que há um operador autenticado e que seu perfil
-     * detém permissão explícita para a operação solicitada ({@code D04}).
+     * Garante que há um operador autenticado e que seu perfil detém permissão explícita ({@code D04}).
      *
      * <p>Rastreabilidade: {@code [Atende RN01, RN12, RN14, RN20, D04]}
      */

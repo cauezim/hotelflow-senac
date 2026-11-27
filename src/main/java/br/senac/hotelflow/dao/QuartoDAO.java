@@ -13,15 +13,14 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * DAO JDBC responsável pelo acesso à tabela {@code quarto} com {@code JOIN} direto em
- * {@code categoria_quarto} e suporte a transações atômicas de Check-in e Check-out.
+ * {@code categoria_quarto} e suporte a transações atômicas de Reserva, Check-in e Check-out.
  *
- * <p>Rastreabilidade: {@code [Atende RN03, RN09, RN12, RN17, RN20, D01]}
+ * <p>Rastreabilidade: {@code [Atende RN03, RN06, RN09, RN12, RN17, RN20, D01]}
  */
-public class QuartoDAO implements CrudDAO<Quarto, Integer> {
+public class QuartoDAO {
 
     private static final String SELECT_BASE = """
             SELECT q.id_quarto, q.numero, q.andar, q.capacidade_maxima,
@@ -41,7 +40,6 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
         this.connectionFactory = connectionFactory;
     }
 
-    @Override
     public Quarto salvar(Quarto quarto) {
         String sql = """
                 INSERT INTO quarto (id_categoria, numero, andar, capacidade_maxima, status_ocupacao, status_limpeza)
@@ -69,7 +67,6 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
         }
     }
 
-    @Override
     public void atualizar(Quarto quarto) {
         try (Connection conn = connectionFactory.getConnection()) {
             atualizar(conn, quarto);
@@ -79,9 +76,27 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
     }
 
     /**
-     * Atualiza os dados e status do quarto reutilizando uma transação JDBC externa em andamento
-     * (essencial para o Check-in atômico {@code RN09} e o Check-out atômico {@code RN17}).
+     * Adquire bloqueio pessimista exclusivo ({@code SELECT ... FOR UPDATE}) sobre a linha do quarto
+     * na transação atual, serializando confirmações de reserva simultâneas ({@code RN06}) e
+     * operações concorrentes de Check-in/Check-out ({@code RN09, RN17}).
+     *
+     * <p>Rastreabilidade: {@code [Atende RN06, RN09, RN17]}
      */
+    public void bloquearPorId(Connection conn, int idQuarto) {
+        if (conn == null) {
+            return;
+        }
+        String sql = "SELECT id_quarto FROM quarto WHERE id_quarto = ? FOR UPDATE";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, idQuarto);
+            try (ResultSet rs = ps.executeQuery()) {
+                rs.next();
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("Erro ao bloquear registro do quarto ID " + idQuarto + ": " + e.getMessage(), e);
+        }
+    }
+
     public void atualizar(Connection conn, Quarto quarto) {
         String sql = """
                 UPDATE quarto
@@ -103,8 +118,7 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
         }
     }
 
-    @Override
-    public Optional<Quarto> buscarPorId(Integer id) {
+    public Quarto buscarPorId(Integer id) {
         String sql = SELECT_BASE + " WHERE q.id_quarto = ?";
         try (Connection conn = connectionFactory.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -112,18 +126,18 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
             ps.setInt(1, id);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar quarto ID " + id + ": " + e.getMessage(), e);
         }
     }
 
-    public Optional<Quarto> buscarPorNumero(String numero) {
-        if (numero == null || numero.isBlank()) {
-            return Optional.empty();
+    public Quarto buscarPorNumero(String numero) {
+        if (numero == null || numero.trim().isEmpty()) {
+            return null;
         }
         String sql = SELECT_BASE + " WHERE q.numero = ?";
         try (Connection conn = connectionFactory.getConnection();
@@ -132,16 +146,15 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
             ps.setString(1, numero.trim());
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    return Optional.of(mapear(rs));
+                    return mapear(rs);
                 }
-                return Optional.empty();
+                return null;
             }
         } catch (SQLException e) {
             throw new PersistenciaException("Erro ao buscar quarto nº '" + numero + "': " + e.getMessage(), e);
         }
     }
 
-    @Override
     public List<Quarto> listarTodos() {
         String sql = SELECT_BASE + " ORDER BY q.andar, q.numero";
         List<Quarto> lista = new ArrayList<>();
@@ -158,11 +171,6 @@ public class QuartoDAO implements CrudDAO<Quarto, Integer> {
         }
     }
 
-    /**
-     * Filtra quartos por estado de limpeza para apoio direto à rotina da Camareira.
-     *
-     * <p>Rastreabilidade: {@code [Atende RN12]}
-     */
     public List<Quarto> listarPorStatusLimpeza(StatusLimpeza statusLimpeza) {
         String sql = SELECT_BASE + " WHERE q.status_limpeza = ? ORDER BY q.andar, q.numero";
         List<Quarto> lista = new ArrayList<>();
